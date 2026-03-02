@@ -6,9 +6,9 @@
 
 zephyr_include_directories(.)
 
-if(CONFIG_ST25R500_DRV AND CONFIG_ST25R200_DRV OR NOT CONFIG_ST25R500_DRV AND NOT CONFIG_ST25R200_DRV) 
-  message(FATAL_ERROR "Either CONFIG_ST25R500_DRV or CONFIG_ST25R200_DRV must be enabled, but not both")
-endif()
-
 add_subdirectory_ifdef(CONFIG_ST25R500_DRV st25r500)
 add_subdirectory_ifdef(CONFIG_ST25R200_DRV st25r200)
+
+if(CONFIG_ST25R3911_DRV OR CONFIG_ST25R3916_DRV OR CONFIG_ST25R3916B_DRV) 
+add_subdirectory(st25r391x)
+endif()
