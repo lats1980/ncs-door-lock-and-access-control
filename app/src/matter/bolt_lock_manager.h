@@ -82,6 +82,7 @@ public:
 
 	bool Lock(Aliro::OperationSource source);
 	bool Unlock(Aliro::OperationSource source);
+	void UpdateState(Aliro::ReaderStateByte state);
 
 	void SetRequirePIN(bool require);
 	bool GetRequirePIN();
@@ -90,8 +91,6 @@ public:
 
 private:
 	friend class AppTask;
-
-	void UpdateState(Aliro::ReaderStateByte state);
 
 	friend BoltLockManager &BoltLockMgr();
 

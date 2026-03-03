@@ -11,6 +11,11 @@
 #include <lib/support/TimeUtils.h>
 #endif // CONFIG_CHIP
 
+#if CONFIG_ALIRO_AT_MODULE
+#include "at_module.h"
+#include "aliro/utils.h"
+#endif // CONFIG_ALIRO_AT_MODULE
+
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(interface_access_document, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
@@ -57,12 +62,25 @@ std::optional<Time> GetCurrentTime()
 
 #endif // CONFIG_CHIP
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+
+std::optional<Time> GetCurrentTime()
+{
+	struct dl_time currentTime;
+	if (!dl_time_get(3, &currentTime)) {
+		return Time(currentTime.year, currentTime.month, currentTime.day, currentTime.hour,
+			    currentTime.minute, currentTime.second);
+	}
+	LOG_WRN("Current time not available from AT host");
+	return std::nullopt;
+}
+#endif // CONFIG_ALIRO_AT_MODULE
+
 } // namespace
 
 std::optional<bool> VerifyValidityPeriod(const Time &validFrom, const Time &validUntil)
 {
-#ifdef CONFIG_CHIP
-
+#if defined(CONFIG_CHIP) || defined(CONFIG_ALIRO_AT_MODULE)
 	const auto currentTimeOpt = GetCurrentTime();
 	VerifyOrReturnValue(currentTimeOpt.has_value(), std::nullopt);
 

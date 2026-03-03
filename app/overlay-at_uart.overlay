@@ -1,0 +1,16 @@
+/*
+ * Copyright (c) 2025 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+ */
+
+ / {
+	chosen {
+		aliro,at-uart = &uart30;
+	};
+};
+
+&uart30 {
+	compatible = "nordic,nrf-uarte";
+	status = "okay";
+};

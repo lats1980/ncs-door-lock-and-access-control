@@ -20,13 +20,16 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <setup_payload/OnboardingCodesUtil.h>
 
-#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
-#ifdef CONFIG_DOOR_LOCK_AT_HOST
-#include "at_host/at_host.h"
-#endif // CONFIG_DOOR_LOCK_AT_HOST
-#else
+#ifndef CONFIG_ALIRO_AT_HOST
 #include <aliro/aliro.h>
 #include <aliro/init.h>
+#endif
+
+#if defined(CONFIG_ALIRO_AT_HOST)
+#include "at_command/at_host.h"
+#include <app/server/Server.h>
+#include <errno.h>
+#include <lib/support/TimeUtils.h>
 #endif
 
 #include <zephyr/logging/log.h>
@@ -36,6 +39,55 @@ LOG_MODULE_DECLARE(app, CONFIG_CHIP_APP_LOG_LEVEL);
 using namespace ::chip;
 using namespace ::chip::app;
 using namespace ::chip::DeviceLayer;
+
+#if defined(CONFIG_ALIRO_AT_HOST)
+#define DL_TIME_REQ_URC "+TIME: REQ"
+static void time_req_urc_handler(const uint8_t *data, size_t datalen);
+DL_AT_RSP(time_req, DL_TIME_REQ_URC, time_req_urc_handler);
+
+void task_time_req_urc_handler(void *context)
+{
+	(void)context;
+	uint16_t year{};
+	uint8_t month{};
+	uint8_t dayOfMonth{};
+	uint8_t hour{};
+	uint8_t minute{};
+	uint8_t second{};
+
+	System::Clock::Milliseconds64 currentUnixTimeMS;
+	auto err = System::SystemClock().GetClock_RealTimeMS(currentUnixTimeMS);
+
+	if (err == CHIP_NO_ERROR) {
+		const auto currentUnixTime =
+			std::chrono::duration_cast<System::Clock::Seconds32>(currentUnixTimeMS);
+		SecondsSinceUnixEpochToCalendarTime(currentUnixTime.count(), year, month, dayOfMonth,
+						    hour, minute, second);
+		(void)at_send_time_response(year, month, dayOfMonth, hour, minute, second);
+		return;
+	}
+
+	LOG_WRN("Wall clock time not available, falling back to Last Known Good Time");
+	System::Clock::Seconds32 lastKnownGoodChipEpochTime{};
+	err = Server::GetInstance().GetFabricTable().GetLastKnownGoodChipEpochTime(
+		lastKnownGoodChipEpochTime);
+	if (err != CHIP_NO_ERROR) {
+		LOG_ERR("Failed to retrieve Last Known Good UTC Time for TIME REQ");
+		return;
+	}
+	ChipEpochToCalendarTime(lastKnownGoodChipEpochTime.count(), year, month, dayOfMonth, hour,
+				minute, second);
+	(void)at_send_time_response(year, month, dayOfMonth, hour, minute, second);
+}
+
+static void time_req_urc_handler(const uint8_t *data, size_t datalen)
+{
+	(void)data;
+	(void)datalen;
+
+	Nrf::PostTask([] { task_time_req_urc_handler(nullptr); });
+}
+#endif /* CONFIG_ALIRO_AT_HOST */
 
 namespace {
 constexpr EndpointId kLockEndpointId{ 1 };
@@ -289,14 +341,20 @@ CHIP_ERROR AppTask::Init()
 
 CHIP_ERROR AppTask::StartApp()
 {
-	ReturnErrorOnFailure(Init());
-#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
-#ifdef CONFIG_DOOR_LOCK_AT_HOST
+#if defined(CONFIG_ALIRO_AT_HOST)
 	int err = at_host_init();
 	VerifyOrReturnError(err == 0, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to init AT Host"));
-#endif // CONFIG_DOOR_LOCK_AT_HOST
-	// TODO: check extermal MCU initialization result and return appropriate error code
-#else
+	do {
+		err = at_host_send_reset_wait_dl_sync(3);
+		if (err != 0) {
+			LOG_ERR("Timeout waiting for DL_SYNC_STR after AT+RESET");
+		}
+	} while (err != 0);
+	VerifyOrReturnError(err == 0, CHIP_ERROR_INTERNAL,
+			    LOG_ERR("AT+RESET or reader sync failed: %d", err));
+#endif
+	ReturnErrorOnFailure(Init());
+#if !defined(CONFIG_ALIRO_AT_HOST)
 	VerifyOrReturnError(AliroInit() == EXIT_SUCCESS, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to initialize Aliro"));
 #endif
 

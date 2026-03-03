@@ -57,6 +57,10 @@
 #include <stdlib.h>
 #include <tuple>
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+#include "at_command/at_module.h"
+#endif // CONFIG_ALIRO_AT_MODULE
+
 LOG_MODULE_REGISTER(aliro, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
 using namespace Aliro;
@@ -288,6 +292,12 @@ int AliroInit()
 			VerifyOrReturn(ec == ALIRO_NO_ERROR, LOG_ERR("Failed to start Aliro advertising"));
 		}
 #endif // CONFIG_DOOR_LOCK_BLE_UWB
+#ifdef CONFIG_ALIRO_AT_MODULE
+		int err = dl_notify_lock_state(state);
+		if (err) {	
+			LOG_ERR("Failed to send initial sync message: %d", err);
+		}
+#endif // CONFIG_ALIRO_AT_MODULE
 	});
 
 	AccessManagerInstance().SetApplicationCallbacks(

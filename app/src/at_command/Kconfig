@@ -1,0 +1,55 @@
+#
+# Copyright (c) 2026 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+config ALIRO_AT_MODULE
+  bool "Aliro AT Module"
+  select MATTER_ON_EXTERNAL_MCU
+  select AT_PARSER
+  help
+    Enables the AT Module
+
+config ALIRO_AT_HOST
+  bool "Door lock AT Host"
+  select ALIRO_ON_EXTERNAL_MCU
+  help
+    Enables the AT Host
+
+config ALIRO_AT_TRANSPORT_SERIAL
+  bool "AT serial transport"
+  default y
+  depends on SERIAL
+  select UART_ASYNC_API
+  select SHELL_ASYNC_API
+  help
+    Use serial transport for AT (async UART with TX/RX FIFOs).
+
+config ALIRO_AT_UART_BUF_SIZE
+  int "UART buffer size for TX and RX"
+  default 256
+  range 64 4096
+  depends on ALIRO_AT_TRANSPORT_SERIAL
+  help
+    Size of each UART TX and RX buffer in bytes.
+
+config ALIRO_AT_UART_RX_WAIT_TIME
+  int "UART RX wait time in microseconds"
+  default 50000
+  depends on ALIRO_AT_TRANSPORT_SERIAL
+  help
+    Timeout for UART RX to deliver a buffer (partial receive).
+
+config ALIRO_AT_RX_EVENT_QUEUE_SIZE
+  int "RX event message queue size"
+  default 8
+  range 4 32
+  depends on ALIRO_AT_TRANSPORT_SERIAL
+  help
+    Number of RX events that can be queued for at_process processing.
+
+config ALIRO_AT_TRANSPORT_BLE
+  bool "AT BLE transport"
+  help
+    Use BLE transport for AT

@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
-#if defined(CONFIG_CHIP) && !defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
+#if defined(CONFIG_CHIP) && !defined(CONFIG_ALIRO_AT_MODULE)
 #include "matter/init.h"
-#else // CONFIG_CHIP && !CONFIG_MATTER_ON_EXTERNAL_MCU
+#else // CONFIG_CHIP && !CONFIG_ALIRO_AT_MODULE
 #include "aliro/init.h"
 #include "aliro/lock_sim/lock_sim_instance.h"
 #endif // CONFIG_CHIP
 
 #include "aliro/utils.h"
 
-#if !defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#if !defined(CONFIG_ALIRO_AT_HOST)
 #include <crypto/utils.h>
 #endif
 #include <zephyr/logging/log.h>
@@ -34,6 +34,10 @@
 #include "uwb_impl.h"
 #endif // CONFIG_DOOR_LOCK_BLE_UWB
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+#include "at_command/at_module.h"
+#endif // CONFIG_ALIRO_AT_MODULE
+
 #ifdef CONFIG_CHIP
 LOG_MODULE_REGISTER(app, CONFIG_CHIP_APP_LOG_LEVEL);
 #else // CONFIG_CHIP
@@ -42,7 +46,7 @@ LOG_MODULE_REGISTER(door_lock_app, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
 int main()
 {
-#if !defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#if !defined(CONFIG_ALIRO_AT_HOST)
 	auto error = DoorLock::Crypto::Init();
 	VerifyOrDie(error == ALIRO_NO_ERROR, "Failed to initialize Aliro crypto");
 #endif
@@ -71,15 +75,20 @@ int main()
 
 #endif // CONFIG_DOOR_LOCK_BLE_UWB
 
-#if defined(CONFIG_CHIP) && !defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
+#if defined(CONFIG_CHIP) && !defined(CONFIG_ALIRO_AT_MODULE)
 
 	int err = StartMatter();
 	VerifyOrDie(err == EXIT_SUCCESS, "Failed to start Matter");
 
-#else // CONFIG_CHIP && !CONFIG_MATTER_ON_EXTERNAL_MCU
+#else // CONFIG_CHIP && !CONFIG_ALIRO_AT_MODULE
 
 	int err = AliroInit();
 	VerifyOrDie(err == EXIT_SUCCESS, "Failed to initialize Aliro");
+
+#ifdef CONFIG_ALIRO_AT_MODULE
+	err = at_module_init();
+	VerifyOrDie(err == 0, "Failed to init AT Module");
+#endif // CONFIG_ALIRO_AT_MODULE
 
 #ifdef CONFIG_DOOR_LOCK_DFU_BLE_SMP
 
@@ -114,6 +123,14 @@ int main()
 	LOG_INF("Application started");
 
 #endif // CONFIG_CHIP
+
+#ifdef CONFIG_ALIRO_AT_MODULE
+	// Send initial sync message to indicate we're ready to receive AT commands
+	err = at_send_str(DL_SYNC_STR);
+	if (err) {	
+		LOG_ERR("Failed to send initial sync message: %d", err);
+	}
+#endif // CONFIG_ALIRO_AT_MODULE
 
 	return EXIT_SUCCESS;
 }

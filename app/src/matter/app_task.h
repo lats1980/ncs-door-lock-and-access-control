@@ -10,6 +10,11 @@
 #include "board/led_widget.h"
 #include "bolt_lock_manager.h"
 
+#ifdef CONFIG_ALIRO_AT_HOST
+#include "at_command/at_host.h"
+#include "at_command/at_command.h"
+#endif // CONFIG_ALIRO_AT_HOST
+
 struct k_timer;
 struct Identify;
 

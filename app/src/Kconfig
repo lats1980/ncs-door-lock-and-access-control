@@ -5,6 +5,6 @@
 #
 
 rsource "aliro/Kconfig"
+rsource "at_command/Kconfig"
 rsource "bt_nus/Kconfig"
 rsource "dfu_smp/Kconfig"
-
