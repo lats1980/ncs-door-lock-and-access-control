@@ -20,8 +20,14 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <setup_payload/OnboardingCodesUtil.h>
 
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#ifdef CONFIG_DOOR_LOCK_AT_HOST
+#include "at_host/at_host.h"
+#endif // CONFIG_DOOR_LOCK_AT_HOST
+#else
 #include <aliro/aliro.h>
 #include <aliro/init.h>
+#endif
 
 #include <zephyr/logging/log.h>
 
@@ -284,7 +290,15 @@ CHIP_ERROR AppTask::Init()
 CHIP_ERROR AppTask::StartApp()
 {
 	ReturnErrorOnFailure(Init());
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#ifdef CONFIG_DOOR_LOCK_AT_HOST
+	int err = at_host_init();
+	VerifyOrReturnError(err == 0, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to init AT Host"));
+#endif // CONFIG_DOOR_LOCK_AT_HOST
+	// TODO: check extermal MCU initialization result and return appropriate error code
+#else
 	VerifyOrReturnError(AliroInit() == EXIT_SUCCESS, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to initialize Aliro"));
+#endif
 
 	while (true) {
 		Nrf::DispatchNextTask();

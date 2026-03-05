@@ -7,7 +7,9 @@
 #pragma once
 
 #include "access/access_manager.h"
+#if !defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
 #include "aliro/lock_sim/lock_sim.h"
+#endif
 #include "aliro/types.h"
 
 #include <app/clusters/door-lock-server/door-lock-server.h>
@@ -98,7 +100,9 @@ private:
 	};
 	StateChangeCallback mStateChangeCallback = nullptr;
 
+#if !defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
 	Aliro::LockSim mLockSim;
+#endif
 
 	static BoltLockManager sLock;
 };

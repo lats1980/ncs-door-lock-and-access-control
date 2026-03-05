@@ -11,7 +11,9 @@ project(door-lock-app)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/../cmake)
 
+if(CONFIG_NCS_ALIRO AND NOT CONFIG_ALIRO_ON_EXTERNAL_MCU)
 add_subdirectory(src/aliro)
+endif()
 add_subdirectory_ifdef(CONFIG_CHIP src/matter)
 add_subdirectory_ifdef(CONFIG_DOOR_LOCK_DFU_BLE_SMP src/dfu_smp)
 add_subdirectory_ifdef(CONFIG_DOOR_LOCK_BLE_NUS src/bt_nus)

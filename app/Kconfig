@@ -18,6 +18,12 @@ config MATTER_ON_EXTERNAL_MCU
   help
     Enable this option if the Matter stack is running on an external MCU.
 
+config ALIRO_ON_EXTERNAL_MCU
+  bool "Aliro stack on external MCU"
+  default n
+  help
+    Enable this option if the Aliro stack is running on an external MCU.
+
 config DOOR_LOCK_CLI
 	bool "CLI support"
 	default y if (!DOOR_LOCK_RELEASE || !CHIP)

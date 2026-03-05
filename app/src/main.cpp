@@ -13,7 +13,9 @@
 
 #include "aliro/utils.h"
 
+#if !defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
 #include <crypto/utils.h>
+#endif
 #include <zephyr/logging/log.h>
 
 #include <cstdlib>
@@ -40,8 +42,10 @@ LOG_MODULE_REGISTER(door_lock_app, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
 int main()
 {
+#if !defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
 	auto error = DoorLock::Crypto::Init();
 	VerifyOrDie(error == ALIRO_NO_ERROR, "Failed to initialize Aliro crypto");
+#endif
 
 #ifdef CONFIG_DOOR_LOCK_BLE_UWB
 

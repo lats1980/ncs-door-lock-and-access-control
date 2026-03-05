@@ -13,7 +13,10 @@
 #include <aliro/interface.h>
 #include <platform/CHIPDeviceLayer.h>
 
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 #include "reader.h"
+#endif
 
 #include <zephyr/logging/log.h>
 
@@ -32,6 +35,7 @@ static_assert(sizeof(Aliro::CryptoTypes::GroupResolvingKey) == kAliroGroupResolv
 	      "Aliro::CryptoTypes::GroupResolvingKey size mismatch");
 static_assert(sizeof(Aliro::ProtocolVersion) == kAliroProtocolVersionSize, "Aliro::ProtocolVersion size mismatch");
 
+#if !defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
 CHIP_ERROR EncodeProtocolVersion(size_t index, chip::MutableByteSpan &protocolVersion,
 				 const Aliro::ProtocolVersion *versions, size_t versionCount)
 {
@@ -52,11 +56,15 @@ CHIP_ERROR EncodeProtocolVersion(size_t index, chip::MutableByteSpan &protocolVe
 
 	return CHIP_NO_ERROR;
 }
+#endif // CONFIG_ALIRO_ON_EXTERNAL_MCU
 } // namespace
 
 CHIP_ERROR DoorLockDelegate::Init()
 {
 	CHIP_ERROR err = chip::DeviceLayer::SystemLayer().ScheduleLambda([]() {
+	LOG_INF("DoorLockDelegate initialization");
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 		const auto rc = DoorLock::Storage::Reader::Init();
 		VerifyOrReturn(rc == ALIRO_NO_ERROR, LOG_ERR("Failed to load Reader data"));
 
@@ -66,6 +74,7 @@ CHIP_ERROR DoorLockDelegate::Init()
 		if (err != EXIT_SUCCESS) {
 			LOG_ERR("Failed to start Aliro");
 		}
+#endif
 	});
 	VerifyOrReturnError(err == CHIP_NO_ERROR, err, LOG_ERR("Failed to schedule lambda"));
 
@@ -75,7 +84,8 @@ CHIP_ERROR DoorLockDelegate::Init()
 CHIP_ERROR DoorLockDelegate::GetAliroReaderVerificationKey(chip::MutableByteSpan &verificationKey)
 {
 	LOG_DBG("GetAliroReaderVerificationKey");
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	VerifyOrReturnError(verificationKey.size() == kAliroReaderVerificationKeySize, CHIP_ERROR_INVALID_ARGUMENT);
 
 	if (!DoorLock::Storage::Reader::IsPrivateKeySet()) {
@@ -92,14 +102,15 @@ CHIP_ERROR DoorLockDelegate::GetAliroReaderVerificationKey(chip::MutableByteSpan
 	}
 
 	std::copy_n(publicKey.begin(), kAliroReaderVerificationKeySize, verificationKey.data());
-
+#endif
 	return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR DoorLockDelegate::GetAliroReaderGroupIdentifier(chip::MutableByteSpan &groupIdentifier)
 {
 	LOG_DBG("GetAliroReaderGroupIdentifier");
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	VerifyOrReturnError(groupIdentifier.size() == kAliroReaderGroupIdentifierSize, CHIP_ERROR_INVALID_ARGUMENT);
 
 	if (!DoorLock::Storage::Reader::IsIdentifierSet()) {
@@ -116,14 +127,15 @@ CHIP_ERROR DoorLockDelegate::GetAliroReaderGroupIdentifier(chip::MutableByteSpan
 	}
 
 	std::copy_n(identifier.data(), kAliroReaderGroupIdentifierSize, groupIdentifier.data());
-
+#endif
 	return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR DoorLockDelegate::GetAliroReaderGroupSubIdentifier(chip::MutableByteSpan &groupSubIdentifier)
 {
 	LOG_DBG("GetAliroReaderGroupSubIdentifier");
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	VerifyOrReturnError(groupSubIdentifier.size() == kAliroReaderGroupSubIdentifierSize,
 			    CHIP_ERROR_INVALID_ARGUMENT);
 
@@ -142,7 +154,7 @@ CHIP_ERROR DoorLockDelegate::GetAliroReaderGroupSubIdentifier(chip::MutableByteS
 
 	std::copy_n(identifier.data() + kAliroReaderGroupIdentifierSize, kAliroReaderGroupSubIdentifierSize,
 		    groupSubIdentifier.data());
-
+#endif
 	return CHIP_NO_ERROR;
 }
 
@@ -151,11 +163,14 @@ DoorLockDelegate::GetAliroExpeditedTransactionSupportedProtocolVersionAtIndex(si
 									      chip::MutableByteSpan &protocolVersion)
 {
 	LOG_DBG("GetAliroExpeditedTransactionSupportedProtocolVersionAtIndex");
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	size_t versionCount{};
 	const auto *versions = Aliro::AliroStack::Instance().GetExpeditedStandardProtocolVersions(versionCount);
 
 	return EncodeProtocolVersion(index, protocolVersion, versions, versionCount);
+#endif
+	return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR DoorLockDelegate::GetAliroGroupResolvingKey(chip::MutableByteSpan &groupResolvingKey)
@@ -165,7 +180,8 @@ CHIP_ERROR DoorLockDelegate::GetAliroGroupResolvingKey(chip::MutableByteSpan &gr
 	VerifyOrReturnError(groupResolvingKey.size() == kAliroGroupResolvingKeySize, CHIP_ERROR_INVALID_ARGUMENT);
 
 #ifdef CONFIG_DOOR_LOCK_BLE_UWB
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	if (!DoorLock::Storage::Reader::IsGroupResolvingKeySet()) {
 		groupResolvingKey.reduce_size(0);
 		return CHIP_ERROR_NOT_FOUND;
@@ -180,7 +196,7 @@ CHIP_ERROR DoorLockDelegate::GetAliroGroupResolvingKey(chip::MutableByteSpan &gr
 	std::copy_n(key.data(), key.size(), groupResolvingKey.data());
 
 	return CHIP_NO_ERROR;
-
+#endif // CONFIG_ALIRO_ON_EXTERNAL_MCU
 #else // CONFIG_DOOR_LOCK_BLE_UWB
 
 	groupResolvingKey.reduce_size(0);
@@ -195,12 +211,13 @@ CHIP_ERROR DoorLockDelegate::GetAliroSupportedBLEUWBProtocolVersionAtIndex(size_
 	LOG_DBG("GetAliroSupportedBLEUWBProtocolVersionAtIndex");
 
 #if CONFIG_DOOR_LOCK_BLE_UWB
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	size_t versionCount{};
 	const auto *versions = Aliro::AliroStack::Instance().GetBleUwbProtocolVersions(versionCount);
 
 	return EncodeProtocolVersion(index, protocolVersion, versions, versionCount);
-
+#endif // CONFIG_ALIRO_ON_EXTERNAL_MCU
 #else // CONFIG_DOOR_LOCK_BLE_UWB
 
 	protocolVersion.reduce_size(0);
@@ -214,9 +231,10 @@ uint8_t DoorLockDelegate::GetAliroBLEAdvertisingVersion()
 	LOG_DBG("GetAliroBLEAdvertisingVersion");
 
 #ifdef CONFIG_DOOR_LOCK_BLE_UWB
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	return Aliro::AliroStack::Instance().GetBleAdvertisingVersion();
-
+#endif
 #else // CONFIG_DOOR_LOCK_BLE_UWB
 
 	return 0;
@@ -244,7 +262,8 @@ CHIP_ERROR DoorLockDelegate::SetAliroReaderConfig(const chip::ByteSpan &signingK
 						  const chip::Optional<chip::ByteSpan> &groupResolvingKey)
 {
 	LOG_DBG("SetAliroReaderConfig");
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	VerifyOrReturnError(signingKey.size() == kAliroSigningKeySize, CHIP_ERROR_INVALID_ARGUMENT);
 	VerifyOrReturnError(verificationKey.size() == kAliroReaderVerificationKeySize, CHIP_ERROR_INVALID_ARGUMENT);
 	VerifyOrReturnError(groupIdentifier.size() == kAliroReaderGroupIdentifierSize, CHIP_ERROR_INVALID_ARGUMENT);
@@ -286,17 +305,18 @@ CHIP_ERROR DoorLockDelegate::SetAliroReaderConfig(const chip::ByteSpan &signingK
 #endif // CONFIG_DOOR_LOCK_BLE_UWB
 
 	VerifyOrReturnError(AliroStart() == EXIT_SUCCESS, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to start Aliro"););
-
+#endif
 	return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR DoorLockDelegate::ClearAliroReaderConfig()
 {
 	LOG_DBG("ClearAliroReaderConfig");
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	VerifyOrReturnError(AliroStop() == EXIT_SUCCESS, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to stop Aliro"));
 
 	VerifyOrReturnError(DoorLock::Storage::Reader::ClearAll() == ALIRO_NO_ERROR, CHIP_ERROR_INTERNAL);
-
+#endif
 	return CHIP_NO_ERROR;
 }

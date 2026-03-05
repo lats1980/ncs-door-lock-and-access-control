@@ -7,12 +7,14 @@
 #include "bolt_lock_manager.h"
 #include "app/task_executor.h"
 
+#if !defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
 #include "aliro/access_manager/access_manager.h"
 #include "aliro/aliro.h"
 
 #ifdef CONFIG_DOOR_LOCK_STEP_UP_PHASE
 #include "validity_iterations.h"
 #endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE
+#endif // CONFIG_ALIRO_ON_EXTERNAL_MCU
 
 #include "app_task.h"
 
@@ -47,7 +49,8 @@ namespace {
 void BoltLockManager::Init(StateChangeCallback callback)
 {
 	mStateChangeCallback = callback;
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 	mLockSim.Init([](Aliro::OperationSource, Aliro::ReaderStateByte state) {
 		Nrf::PostTask([state] { BoltLockMgr().UpdateState(state); });
 	});
@@ -69,9 +72,11 @@ void BoltLockManager::Init(StateChangeCallback callback)
 		.mLockIndicatorClb =
 			[](Aliro::OperationSource source) { Nrf::PostTask([source] { BoltLockMgr().Lock(source); }); },
 	});
-
+#endif
 	auto addPublicKey = [](uint16_t credentialIndex, CredentialTypeEnum credentialType,
 			       chip::ByteSpan credentialData) {
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 		Aliro::CryptoTypes::PublicKey publicKey{};
 		std::copy_n(credentialData.data(), publicKey.size(), publicKey.data());
 
@@ -88,10 +93,13 @@ void BoltLockManager::Init(StateChangeCallback callback)
 			Aliro::AccessManagerInstance().AddPublicKey(
 				publicKey, Aliro::AccessManager::PublicKeyType::CredentialIssuer, keyIndex);
 		}
+#endif
 	};
 
 	auto removePublicKey = []([[maybe_unused]] uint16_t credentialIndex, CredentialTypeEnum credentialType,
 				  chip::ByteSpan credentialData) {
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+#else
 		Aliro::CryptoTypes::PublicKey publicKey{};
 		std::copy_n(credentialData.data(), publicKey.size(), publicKey.data());
 
@@ -112,6 +120,7 @@ void BoltLockManager::Init(StateChangeCallback callback)
 			Aliro::ClearValidityIterations(credentialIndex);
 #endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE
 		}
+#endif
 	};
 
 	AccessMgr::Instance().Init(addPublicKey, removePublicKey, nullptr, addPublicKey);
@@ -215,8 +224,11 @@ void BoltLockManager::Lock(const OperationSource source, const Nullable<chip::Fa
 		       fabricIdx,
 		       nodeId,
 		       validatePINResult };
-
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+	// TODO: send lock command to external MCU
+#else
 	mLockSim.Lock(ToAliroOperationSource(source));
+#endif
 }
 
 void BoltLockManager::Unlock(const OperationSource source, const Nullable<chip::FabricIndex> &fabricIdx,
@@ -230,7 +242,11 @@ void BoltLockManager::Unlock(const OperationSource source, const Nullable<chip::
 		       nodeId,
 		       validatePINResult };
 
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+	// TODO: send unlock command to external MCU
+#else
 	mLockSim.Unlock(ToAliroOperationSource(source));
+#endif
 }
 
 bool BoltLockManager::Lock(Aliro::OperationSource source)
@@ -243,7 +259,11 @@ bool BoltLockManager::Lock(Aliro::OperationSource source)
 		       NullNullable,
 		       NullNullable };
 
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+	// TODO: send unlock command to external MCU
+#else
 	mLockSim.Lock(source);
+#endif
 	return true;
 }
 
@@ -257,7 +277,11 @@ bool BoltLockManager::Unlock(Aliro::OperationSource source)
 		       NullNullable,
 		       NullNullable };
 
+#if defined(CONFIG_ALIRO_ON_EXTERNAL_MCU)
+	// TODO: send unlock command to external MCU
+#else
 	mLockSim.Unlock(source);
+#endif
 	return true;
 }
 
