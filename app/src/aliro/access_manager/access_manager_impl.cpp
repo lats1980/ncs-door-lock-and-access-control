@@ -47,7 +47,7 @@ K_MUTEX_DEFINE(sMutex);
 
 #ifdef CONFIG_DOOR_LOCK_STEP_UP_PHASE
 
-#ifdef CONFIG_CHIP
+#if defined(CONFIG_CHIP) || defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 
 constexpr std::array<uint8_t, 7> kElementIdentifier{ 'm', 'a', 't', 't', 'e', 'r', '1' };
 

@@ -12,6 +12,12 @@ module-dep = LOG
 module-help = Enables nRF Connect SDK Door Lock Application log messages.
 source "$(ZEPHYR_BASE)/subsys/logging/Kconfig.template.log_config"
 
+config MATTER_ON_EXTERNAL_MCU
+	bool "Matter stack on external MCU"
+	default n
+  help
+    Enable this option if the Matter stack is running on an external MCU.
+
 config DOOR_LOCK_CLI
 	bool "CLI support"
 	default y if (!DOOR_LOCK_RELEASE || !CHIP)

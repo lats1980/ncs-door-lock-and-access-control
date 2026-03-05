@@ -180,9 +180,9 @@ constexpr uint8_t GetApplicationFeatures()
 	features |= kFeatureReaderCertificateSupported;
 #endif // CONFIG_DOOR_LOCK_READER_CERTIFICATE
 
-#ifdef CONFIG_CHIP
+#if defined(CONFIG_CHIP) || defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 	features |= kFeatureMatterSupported;
-#endif // CONFIG_CHIP
+#endif // CONFIG_CHIP || CONFIG_MATTER_ON_EXTERNAL_MCU
 
 	return features;
 }
@@ -341,7 +341,7 @@ int AliroInit()
 
 	LOG_INF("Aliro stack initialized");
 
-#ifndef CONFIG_CHIP
+#if !defined(CONFIG_CHIP) && !defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 	ec = DoorLock::AliroStateControl::UpdateAliroState();
 	VerifyOrReturnValue(ec == ALIRO_NO_ERROR, EXIT_FAILURE,
 			    LOG_ERR("Failed to update Aliro state: %d", ec.ToInt()));

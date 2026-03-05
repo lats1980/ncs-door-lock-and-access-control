@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
-#ifdef CONFIG_CHIP
+#if defined(CONFIG_CHIP) && !defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 #include "matter/init.h"
-#else // CONFIG_CHIP
+#else // CONFIG_CHIP && !CONFIG_MATTER_ON_EXTERNAL_MCU
 #include "aliro/init.h"
 #include "aliro/lock_sim/lock_sim_instance.h"
 #endif // CONFIG_CHIP
@@ -67,12 +67,12 @@ int main()
 
 #endif // CONFIG_DOOR_LOCK_BLE_UWB
 
-#ifdef CONFIG_CHIP
+#if defined(CONFIG_CHIP) && !defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 
 	int err = StartMatter();
 	VerifyOrDie(err == EXIT_SUCCESS, "Failed to start Matter");
 
-#else // CONFIG_CHIP
+#else // CONFIG_CHIP && !CONFIG_MATTER_ON_EXTERNAL_MCU
 
 	int err = AliroInit();
 	VerifyOrDie(err == EXIT_SUCCESS, "Failed to initialize Aliro");

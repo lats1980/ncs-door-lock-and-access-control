@@ -160,7 +160,7 @@ AliroError LoadIssuerPublicKey()
 
 #endif // CONFIG_DOOR_LOCK_READER_CERTIFICATE
 
-#if defined(CONFIG_DOOR_LOCK_BLE_UWB) && !defined(CONFIG_CHIP)
+#if defined(CONFIG_DOOR_LOCK_BLE_UWB) && !defined(CONFIG_CHIP) && !defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 
 AliroError EnsureGroupResolvingKey()
 {
@@ -177,7 +177,7 @@ AliroError EnsureGroupResolvingKey()
 	return ALIRO_NO_ERROR;
 }
 
-#endif // CONFIG_DOOR_LOCK_BLE_UWB && !CONFIG_CHIP
+#endif // CONFIG_DOOR_LOCK_BLE_UWB && !CONFIG_CHIP && !CONFIG_MATTER_ON_EXTERNAL_MCU
 
 } // namespace
 
@@ -191,9 +191,9 @@ AliroError Init()
 	ReturnErrorOnFailure(LoadIssuerPublicKey());
 #endif // CONFIG_DOOR_LOCK_READER_CERTIFICATE
 
-#if defined(CONFIG_DOOR_LOCK_BLE_UWB) && !defined(CONFIG_CHIP)
+#if defined(CONFIG_DOOR_LOCK_BLE_UWB) && !defined(CONFIG_CHIP) && !defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 	ReturnErrorOnFailure(EnsureGroupResolvingKey());
-#endif // CONFIG_DOOR_LOCK_BLE_UWB && !CONFIG_CHIP
+#endif // CONFIG_DOOR_LOCK_BLE_UWB && !CONFIG_CHIP && !CONFIG_MATTER_ON_EXTERNAL_MCU
 
 	return ALIRO_NO_ERROR;
 }

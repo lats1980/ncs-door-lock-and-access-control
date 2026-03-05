@@ -8,7 +8,7 @@ target_sources(app PRIVATE
 	init.cpp
 )
 
-if(NOT CONFIG_CHIP)
+if(NOT CONFIG_CHIP AND NOT CONFIG_MATTER_ON_EXTERNAL_MCU)
 	set(ALIRO_STANDALONE TRUE)
 endif()
 
