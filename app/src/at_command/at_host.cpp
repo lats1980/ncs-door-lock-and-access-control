@@ -106,14 +106,20 @@ void dl_at_rsp_register(const char *filter, dl_at_rsp_callback_t cb)
 static void dl_sync_str_rsp_handler(const uint8_t *data, size_t datalen)
 {
 	(void)datalen;
+	LOG_INF("Received DL sync response: %.*s", (int)datalen, data);
+
 	if (!s_dl_sync_armed.load(std::memory_order_relaxed)) {
+		LOG_WRN("Received unexpected DL sync response");
 		return;
 	}
+
 	if (strcmp((const char *)data, "Ready") != 0) {
+		LOG_ERR("Received invalid DL sync response");
 		return;
 	}
 	s_dl_sync_armed.store(false, std::memory_order_relaxed);
 	k_sem_give(&dl_sync_sem);
+	LOG_INF("DL sync complete");
 }
 
 DL_AT_RSP(dl_sync_ready, "Ready", dl_sync_str_rsp_handler);
@@ -132,10 +138,19 @@ static bool dispatch_at_line(const char *line)
 
 extern "C" {
 
+static void s_transport_state_cb(enum at_transport_state state)
+{
+	if (state == AT_TRANSPORT_CONNECTED) {
+		LOG_INF("AT transport connected");
+	} else {
+		LOG_INF("AT transport disconnected");
+	}
+}
+
 int at_host_init(void)
 {
     LOG_INF("Initializing AT Host");
-    int err = at_transport_enable();
+    int err = at_transport_enable(s_transport_state_cb);
     if (err) {
         LOG_ERR("Failed to enable AT transport: %d", err);
         return err;
@@ -605,7 +620,7 @@ bool at_aliro_lock(Aliro::OperationSource source)
 	char cmd_buf[DL_AT_LINE_BUF_SIZE];
 	int ret;
 
-	ret = snprintf(cmd_buf, sizeof(cmd_buf), "\r\nAT+ALIROLOCK=%" PRIu8 "\r\n", (uint8_t)source);
+	ret = snprintf(cmd_buf, sizeof(cmd_buf), "AT+ALIROLOCK=%" PRIu8 "\r\n", (uint8_t)source);
 	if (ret < 0 || (size_t)ret >= sizeof(cmd_buf)) {
 		LOG_ERR("Failed to format AT+ALIROLOCK command");
 		return false;
@@ -624,7 +639,7 @@ bool at_aliro_unlock(Aliro::OperationSource source)
 	char cmd_buf[DL_AT_LINE_BUF_SIZE];
 	int ret;
 
-	ret = snprintf(cmd_buf, sizeof(cmd_buf), "\r\nAT+ALIROUNLOCK=%" PRIu8 "\r\n", (uint8_t)source);
+	ret = snprintf(cmd_buf, sizeof(cmd_buf), "AT+ALIROUNLOCK=%" PRIu8 "\r\n", (uint8_t)source);
 	if (ret < 0 || (size_t)ret >= sizeof(cmd_buf)) {
 		LOG_ERR("Failed to format AT+ALIROUNLOCK command");
 		return false;
@@ -644,7 +659,7 @@ int at_send_time_response(uint16_t year, uint8_t month, uint8_t day,
 	char buf[DL_AT_LINE_BUF_SIZE];
 	int ret;
 
-	ret = snprintf(buf, sizeof(buf), "\r\nAT+TIME=1,\"%04u-%02u-%02u\",\"%02u:%02u:%02u\"\r\n",
+	ret = snprintf(buf, sizeof(buf), "AT+TIME=1,\"%04u-%02u-%02u\",\"%02u:%02u:%02u\"\r\n",
 		       (unsigned int)year, (unsigned int)month, (unsigned int)day,
 		       (unsigned int)hour, (unsigned int)minute, (unsigned int)second);
 	if (ret < 0 || (size_t)ret >= sizeof(buf)) {

@@ -295,7 +295,7 @@ int AliroInit()
 #ifdef CONFIG_ALIRO_AT_MODULE
 		int err = dl_notify_lock_state(state);
 		if (err) {	
-			LOG_ERR("Failed to send initial sync message: %d", err);
+			LOG_ERR("Failed to notify lock state message: %d", err);
 		}
 #endif // CONFIG_ALIRO_AT_MODULE
 	});

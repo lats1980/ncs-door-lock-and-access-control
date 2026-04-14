@@ -22,6 +22,14 @@ target_sources_ifdef(CONFIG_ALIRO_AT_TRANSPORT_SERIAL app PRIVATE
   at_transport_serial.cpp
 )
 
-target_sources_ifdef(CONFIG_ALIRO_AT_TRANSPORT_BLE app PRIVATE
-  at_transport_ble.cpp
+if(CONFIG_ALIRO_AT_TRANSPORT_BLE AND NOT CONFIG_CHIP)
+target_sources(app PRIVATE
+  at_transport_ble_peripheral.cpp
 )
+endif()
+
+if(CONFIG_ALIRO_AT_TRANSPORT_BLE AND CONFIG_CHIP)
+target_sources(app PRIVATE
+  at_transport_ble_central.cpp
+)
+endif()

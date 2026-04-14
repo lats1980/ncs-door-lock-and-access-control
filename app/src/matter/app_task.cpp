@@ -344,14 +344,6 @@ CHIP_ERROR AppTask::StartApp()
 #if defined(CONFIG_ALIRO_AT_HOST)
 	int err = at_host_init();
 	VerifyOrReturnError(err == 0, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to init AT Host"));
-	do {
-		err = at_host_send_reset_wait_dl_sync(3);
-		if (err != 0) {
-			LOG_ERR("Timeout waiting for DL_SYNC_STR after AT+RESET");
-		}
-	} while (err != 0);
-	VerifyOrReturnError(err == 0, CHIP_ERROR_INTERNAL,
-			    LOG_ERR("AT+RESET or reader sync failed: %d", err));
 #endif
 	ReturnErrorOnFailure(Init());
 #if !defined(CONFIG_ALIRO_AT_HOST)

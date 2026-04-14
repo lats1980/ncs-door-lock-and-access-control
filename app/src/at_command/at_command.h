@@ -67,6 +67,14 @@ size_t at_process(const uint8_t *data, size_t len, bool *stop_at_receive);
 int at_send(const uint8_t *data, size_t len);
 
 /**
+ * @brief Receive data. Called from transport when data is received.
+ * @param data  Received data (must be copied if needed after return).
+ * @param len   Length in bytes.
+ * @return 0 on success, negative errno on failure.
+ */
+int at_receive(const uint8_t *data, size_t len);
+
+/**
  * @brief Send a null-terminated string via the AT transport layer.
  * @param str Null-terminated string; NULL returns -EINVAL.
  * @return Same as at_send().

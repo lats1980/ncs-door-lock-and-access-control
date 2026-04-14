@@ -11,6 +11,8 @@ manifest:
       url-base: git@github.com:nrfconnect
     - name: nrfconnect-uwb-qorvo
       url-base: git@gitlab.com:qorvo/qswg/public
+    - name: ncs-customization
+      url-base: https://github.com/lats1980
   projects:
     - name: nrf
       remote: ncs
@@ -24,11 +26,11 @@ manifest:
       groups:
         - nrfconnect-sdk-qorvo
     - name: matter
-      remote: ncs
+      remote: ncs-customization
       repo-path: sdk-connectedhomeip
       path: modules/lib/matter
-      # v3.2-door-lock-app
-      revision: ffd5c633b01ab15698d2631fa5b6e8fb8a3bc0d0
+      # v3.2-door-lock-app-split
+      revision: 8905bee9ab388d7ce21765c446e6e8a722476513
       west-commands: scripts/west/west-commands.yml
       submodules:
         - name: nlio

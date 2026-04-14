@@ -19,20 +19,37 @@
 
 LOG_MODULE_REGISTER(at_module, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static bool s_transport_ready_notified;
+
 static void dl_at_reset_reboot_work_fn(struct k_work *work)
 {
 	ARG_UNUSED(work);
 	sys_reboot(SYS_REBOOT_WARM);
 }
 
+static void at_module_ready_work_fn(struct k_work *work)
+{
+	int err;
+	ARG_UNUSED(work);
+	LOG_INF("AT Module ready work handler called");
+	err = at_send_str(DL_SYNC_STR);
+	if (err) {
+		LOG_ERR("Failed to send DL_SYNC_STR on transport connect: %d", err);
+	} else {
+		LOG_INF("DL_SYNC_STR sent successfully, AT Module is ready");
+		s_transport_ready_notified = true;
+	}
+}
+
 K_WORK_DELAYABLE_DEFINE(dl_at_reset_reboot_work, dl_at_reset_reboot_work_fn);
+K_WORK_DEFINE(dl_at_module_ready_work, at_module_ready_work_fn);
 
 #ifndef CONFIG_ALIRO_AT_MODULE_MAX_CUSTOM_CMDS
 #define CONFIG_ALIRO_AT_MODULE_MAX_CUSTOM_CMDS 16
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 struct dl_at_cmd_entry {
@@ -42,6 +59,18 @@ struct dl_at_cmd_entry {
 
 static struct dl_at_cmd_entry s_custom_cmds[CONFIG_ALIRO_AT_MODULE_MAX_CUSTOM_CMDS];
 static size_t s_custom_cmd_count;
+
+static void s_transport_state_cb(enum at_transport_state state)
+{
+	if (state == AT_TRANSPORT_CONNECTED) {
+		LOG_INF("AT transport connected");
+		if (!s_transport_ready_notified) {
+			k_work_submit(&dl_at_module_ready_work);
+		}
+	} else {
+		LOG_INF("AT transport disconnected");
+	}
+}
 
 static K_SEM_DEFINE(at_time_sem, 0, 1);
 
@@ -100,7 +129,7 @@ static bool dispatch_at_line(const char *line)
 int at_module_init(void)
 {
     LOG_INF("Initializing AT Module");
-    int err = at_transport_enable();
+    int err = at_transport_enable(s_transport_state_cb);
     if (err) {
         LOG_ERR("Failed to enable AT transport: %d", err);
         return err;

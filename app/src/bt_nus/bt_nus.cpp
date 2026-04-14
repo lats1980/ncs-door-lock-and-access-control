@@ -17,6 +17,10 @@
 
 #include <cstring>
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+#include "at_command/at_transport.h"
+#endif // CONFIG_ALIRO_AT_MODULE
+
 LOG_MODULE_REGISTER(NusService, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
 namespace Aliro::BtNus {
@@ -28,8 +32,10 @@ AliroError NUSService::Start()
 	VerifyOrReturnStatus(!mIsStarted, ALIRO_INVALID_STATE, LOG_ERR("NUS service is already started"));
 
 	static bt_conn_auth_cb sConnAuthCallbacks = {
+#if defined(CONFIG_BT_APP_PASSKEY)
 		.passkey_display = [](bt_conn *conn,
 				      unsigned int passkey) { Instance().AuthPasskeyDisplay(conn, passkey); },
+#endif
 		.cancel = [](bt_conn *conn) { Instance().AuthCancel(conn); },
 #if defined(CONFIG_BT_APP_PASSKEY)
 		.app_passkey =
@@ -48,6 +54,16 @@ AliroError NUSService::Start()
 	static bt_nus_cb sNusCallbacks = {
 		.received = [](bt_conn *conn, const uint8_t *data,
 			       uint16_t len) { Instance().RxCallback(conn, data, len); },
+#if CONFIG_ALIRO_AT_MODULE
+		.send_enabled = [](enum bt_nus_send_status status) {
+			LOG_INF("NUS send enabled status: %d", status);
+			if (status == BT_NUS_SEND_STATUS_ENABLED) {
+				at_transport_set_state(AT_TRANSPORT_CONNECTED);
+			} else {
+				at_transport_set_state(AT_TRANSPORT_DISCONNECTED);
+			}
+		},
+#endif
 	};
 
 	VerifyOrReturnStatus(bt_conn_auth_cb_register(&sConnAuthCallbacks) == 0, ALIRO_ERROR_INTERNAL,
@@ -117,6 +133,21 @@ void NUSService::DispatchCommand(const char *const data, uint16_t len)
 			return false;
 		}
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+		if (memcmp(data, "AT", 2) == 0) {
+			LOG_INF("Received AT command over NUS, length: %d command len: %d", len, c.mCommandLength);
+			LOG_HEXDUMP_INF(data, len, "Received AT command:");
+			if (at_transport_rx(reinterpret_cast<const uint8_t *>(data), len) == 0) {
+				LOG_DBG("AT transport received data successfully");
+			} else {
+				LOG_ERR("Failed to send data to AT transport");
+			}
+			return true;
+		} else {
+			LOG_INF("Received NUS command: %.*s", c.mCommandLength, c.mCommand.data());
+		}
+#endif // CONFIG_ALIRO_AT_MODULE
+
 		if (len == c.mCommandLength) {
 			return true;
 		}
@@ -169,7 +200,7 @@ void NUSService::Connected(bt_conn *conn, uint8_t err)
 	VerifyOrReturn(conn, LOG_ERR("Connection is null"));
 
 	mBTConnection = conn;
-	bt_conn_set_security(conn, BT_SECURITY_L3);
+	bt_conn_set_security(conn, BT_SECURITY_L2);
 	LOG_INF("NUS connected");
 }
 
@@ -179,6 +210,9 @@ void NUSService::Disconnected(bt_conn *, uint8_t reason)
 
 	mBTConnection = nullptr;
 	LOG_INF("NUS disconnected (reason: %u)", reason);
+#ifdef CONFIG_ALIRO_AT_MODULE
+	at_transport_set_state(AT_TRANSPORT_DISCONNECTED);
+#endif
 }
 
 void NUSService::SecurityChanged(bt_conn *conn, bt_security_t level, bt_security_err err)
@@ -188,6 +222,15 @@ void NUSService::SecurityChanged(bt_conn *conn, bt_security_t level, bt_security
 	VerifyOrReturn(err == BT_SECURITY_ERR_SUCCESS, LOG_ERR("NUS BT Security failed: level %d err %d",
 							       static_cast<int>(level), static_cast<int>(err)));
 	LOG_DBG("NUS BT Security changed: %s level %d", GetAddressString(conn), static_cast<int>(level));
+}
+
+void NUSService::Recycled()
+{
+	VerifyOrReturn(IsNusStarted(), LOG_DBG("NUS service not started, ignoring recycled callback"));
+
+	LOG_INF("NUS connection recycled");
+	AliroError err = BleArbiter::InsertRequest(BleArbiter::Component::Nus, mRequest);
+	VerifyOrReturn(err == ALIRO_NO_ERROR, LOG_ERR("NUS advertising request failed (rc %d)", err.ToInt()));
 }
 
 void NUSService::RxCallback(bt_conn *, const uint8_t *const data, uint16_t len)

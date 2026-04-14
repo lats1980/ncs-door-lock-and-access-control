@@ -98,7 +98,14 @@ int main()
 #endif // CONFIG_DOOR_LOCK_DFU_BLE_SMP
 
 #ifdef CONFIG_DOOR_LOCK_BLE_NUS
-
+#ifdef CONFIG_ALIRO_AT_MODULE
+	Aliro::BtNus::NUSService::Instance().RegisterCommand(
+		"AT", strlen("AT"),
+		[](void *context) {
+			LOG_INF("AT command received over NUS");
+		},
+		nullptr);
+#else
 	Aliro::BtNus::NUSService::Instance().RegisterCommand(
 		"Unlock", strlen("Unlock"),
 		[](void *context) {
@@ -114,23 +121,14 @@ int main()
 			Aliro::LockSimInstance().Lock(Aliro::OperationSource::Unspecified);
 		},
 		nullptr);
-
+#endif // CONFIG_ALIRO_AT_MODULE
 	AliroError nusErr = Aliro::BtNus::NUSService::Instance().Start();
 	VerifyOrDie(nusErr == ALIRO_NO_ERROR, "Failed to start NUS service");
-
 #endif // CONFIG_DOOR_LOCK_BLE_NUS
 
 	LOG_INF("Application started");
 
 #endif // CONFIG_CHIP
-
-#ifdef CONFIG_ALIRO_AT_MODULE
-	// Send initial sync message to indicate we're ready to receive AT commands
-	err = at_send_str(DL_SYNC_STR);
-	if (err) {	
-		LOG_ERR("Failed to send initial sync message: %d", err);
-	}
-#endif // CONFIG_ALIRO_AT_MODULE
 
 	return EXIT_SUCCESS;
 }

@@ -78,6 +78,7 @@ public:
 	void Connected(bt_conn *conn, uint8_t err);
 	void Disconnected(bt_conn *conn, uint8_t reason);
 	void SecurityChanged(bt_conn *conn, bt_security_t level, enum bt_security_err err);
+	void Recycled();
 
 private:
 	NUSService() = default;

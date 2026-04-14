@@ -118,6 +118,10 @@ void BleManager::Recycled()
 {
 	LOG_DBG("Connection recycled");
 
+#ifdef CONFIG_DOOR_LOCK_BLE_NUS
+	NUSService::Instance().Recycled();
+#endif // CONFIG_DOOR_LOCK_BLE_NUS
+
 	ResumeAdvertising();
 }
 
@@ -244,7 +248,6 @@ AliroError BleManager::Init()
 	VerifyOrReturnStatus(!IsInitialized(), ALIRO_INVALID_STATE, LOG_ERR("BLE manager already initialized"));
 
 #ifndef CONFIG_CHIP
-
 	k_work_init(&mAdvResumeWork, []([[maybe_unused]] k_work *) { Instance().ResumeAdvertisingHandler(); });
 
 	int idOrError = CreateRandomStaticAddress();
