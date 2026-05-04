@@ -46,7 +46,7 @@ AliroError StartAliroAdvertising();
  */
 bool IsAliroRunning();
 
-#ifdef CONFIG_CHIP
+#if defined(CONFIG_CHIP) || defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 
 /**
  * @brief Clears Aliro storage.
@@ -55,4 +55,4 @@ bool IsAliroRunning();
  */
 void ClearStorageAliro(bool reinitializeStorage);
 
-#endif // CONFIG_CHIP
+#endif // CONFIG_CHIP || CONFIG_MATTER_ON_EXTERNAL_MCU

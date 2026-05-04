@@ -95,6 +95,16 @@ bool at_reader_private_key_is_set(void);
 bool at_reader_start(void);
 
 /**
+ * @brief Clear the reader's Aliro storage, optionally reinitializing it.
+ * 
+ * Sends AT+ALIROCLEARSTORAGE=1 to clear storage and reinitialize, or AT+ALIROCLEARSTORAGE=0 to clear
+ * without reinitializing.
+ * 
+ * @return true on success, false otherwise (timeout or error).
+ */
+bool at_reader_clear_storage(bool reinitializeStorage);
+
+/**
  * @brief Set the reader private key on the device.
  *
  * Sends AT+READERKEY=1 with the provided private key.

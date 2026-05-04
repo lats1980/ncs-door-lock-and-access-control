@@ -355,6 +355,30 @@ bool at_reader_start(void)
 	return true;
 }
 
+bool at_reader_clear_storage(bool reinitializeStorage)
+{
+	int ret;
+	char cmd_buf[DL_AT_LINE_BUF_SIZE];
+
+	if (reinitializeStorage) {
+		LOG_INF("Clearing Aliro storage with reinitialization");
+	} else {
+		LOG_INF("Clearing Aliro storage without reinitialization");
+	}
+	ret = snprintf(cmd_buf, sizeof(cmd_buf), "AT+ALIROCLEARSTORAGE=%d\r\n", reinitializeStorage ? 1 : 0);
+	if (ret < 0 || (size_t)ret >= sizeof(cmd_buf)) {
+		LOG_ERR("Failed to format AT command");
+		return false;
+	}
+
+	ret = at_host_send_cmd(cmd_buf, DL_ALIROCLEARSTORAGE_TIMEOUT);
+	if (ret != AT_CMD_OK) {
+		LOG_WRN("AT+ALIROCLEARSTORAGE failed or timeout: %d", ret);
+		return false;
+	}
+	return true;
+}
+
 bool at_reader_private_key_set(const uint8_t *private_key, size_t key_size)
 {	char cmd_buf[DL_AT_LINE_BUF_SIZE];
 	char private_key_str[READER_KEY_SIZE * 2 + 1];

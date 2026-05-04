@@ -110,7 +110,13 @@ void AppEventHandler(const ChipDeviceEvent *event, [[maybe_unused]] intptr_t)
 		// With this configuration we have to manually clean up the storage,
 		// as whole settings partition won't be erased.
 		BoltLockMgr().FactoryReset();
+#if defined(CONFIG_ALIRO_AT_HOST)
+		if (!at_reader_clear_storage(reinitializeStorage)) {
+			LOG_ERR("Failed to clear Aliro storage on factory reset");
+		}
+#else
 		ClearStorageAliro(reinitializeStorage);
+#endif
 		break;
 	default:
 		break;

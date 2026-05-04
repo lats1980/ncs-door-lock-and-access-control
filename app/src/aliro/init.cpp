@@ -418,7 +418,7 @@ bool IsAliroRunning()
 	return sAliroRunning;
 }
 
-#ifdef CONFIG_CHIP
+#if defined(CONFIG_CHIP) || defined(CONFIG_MATTER_ON_EXTERNAL_MCU)
 
 void ClearStorageAliro(bool reinitializeStorage)
 {
@@ -470,4 +470,4 @@ void ClearStorageAliro(bool reinitializeStorage)
 #endif // CONFIG_DOOR_LOCK_EXTERNAL_NVS
 }
 
-#endif // CONFIG_CHIP
+#endif // CONFIG_CHIP || CONFIG_MATTER_ON_EXTERNAL_MCU

@@ -327,8 +327,7 @@ static int handle_at_readerid(enum at_parser_cmd_type cmd_type, struct at_parser
 			if (!DoorLock::Storage::Reader::IsIdentifierSet()) {
 				LOG_INF("Reader identifier is NOT set; creating new one");
 			} else {
-				LOG_INF("Reader identifier is already set; Do not overwre");
-				return -EALREADY;
+				LOG_WRN("Reader identifier is already set; overwriting with new value");
 			}
 			if (param_count < 2) {
 				LOG_ERR("Missing 32-byte hex string for READERID (e.g. AT+READERID=1,\"00112233445566778899aabbccddeeff\")");
@@ -467,6 +466,41 @@ static int handle_at_alirostart(enum at_parser_cmd_type cmd_type, struct at_pars
 		LOG_ERR("Failed to start Aliro");
 	}
 	return err;
+}
+
+DL_AT_CMD(aliroclearstorage, "AT+ALIROCLEARSTORAGE", handle_at_aliroclearstorage);
+static int handle_at_aliroclearstorage(enum at_parser_cmd_type cmd_type, struct at_parser *parser,
+				      uint32_t param_count)
+{
+	LOG_INF("Received ALIROCLEARSTORAGE command");
+
+	(void)parser;
+	(void)param_count;
+	if (cmd_type == AT_PARSER_CMD_TYPE_SET) {
+		uint16_t op;
+		int err = at_parser_uint16_get(parser, 1, &op);
+		if (err) {
+			return err;
+		}
+		if (op == 1) {
+			LOG_INF("Clearing Aliro storage and rebooting");
+			ClearStorageAliro(true);
+			DoorLock::Storage::Reader::ClearPrivateKey();
+			k_work_reschedule(&dl_at_reset_reboot_work, K_MSEC(250));
+			return 0;
+		} else if (op == 0) {
+			LOG_INF("Clearing Aliro storage without reboot");
+			ClearStorageAliro(false);
+			DoorLock::Storage::Reader::ClearPrivateKey();
+			k_work_reschedule(&dl_at_reset_reboot_work, K_MSEC(250));
+			return 0;
+		} else {
+			LOG_ERR("Invalid operation for ALIROCLEARSTORAGE: %d", op);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
 }
 
 DL_AT_CMD(aliroexpeditedver, "AT+ALIROEXPEDITEDVER", handle_at_aliroexpeditedver);
