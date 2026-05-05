@@ -44,6 +44,17 @@ LOG_MODULE_REGISTER(app, CONFIG_CHIP_APP_LOG_LEVEL);
 LOG_MODULE_REGISTER(door_lock_app, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 #endif // CONFIG_CHIP
 
+#if defined(CONFIG_ALIRO_AT_MODULE)
+static void s_module_event_cb(enum at_module_event event)
+{
+	if (event == AT_MODULE_TRANSPORT_CONNECTED) {
+		LOG_INF("AT command transport connected");
+	} else {
+		LOG_INF("AT command transport disconnected");
+	}
+}
+#endif // CONFIG_ALIRO_AT_MODULE
+
 int main()
 {
 #if !defined(CONFIG_ALIRO_AT_HOST)
@@ -86,7 +97,7 @@ int main()
 	VerifyOrDie(err == EXIT_SUCCESS, "Failed to initialize Aliro");
 
 #ifdef CONFIG_ALIRO_AT_MODULE
-	err = at_module_init();
+	err = at_module_init(s_module_event_cb);
 	VerifyOrDie(err == 0, "Failed to init AT Module");
 #endif // CONFIG_ALIRO_AT_MODULE
 

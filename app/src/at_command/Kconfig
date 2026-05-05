@@ -44,3 +44,9 @@ config ALIRO_AT_TRANSPORT_BLE
   bool "AT BLE transport"
   help
     Use BLE transport for AT
+
+config ALIRO_AT_TRANSPORT_STATE_INDICATOR
+  bool "AT transport state indicator"
+  default y if ALIRO_AT_TRANSPORT_BLE
+  help
+    Enable indication of the AT transport state (connected/disconnected).

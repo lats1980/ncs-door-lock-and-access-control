@@ -17,6 +17,18 @@ extern "C" {
 #include <zephyr/types.h>
 #include <stdbool.h>
 
+enum at_host_event {
+    AT_HOST_TRANSPORT_DISCONNECTED,
+    AT_HOST_TRANSPORT_CONNECTED
+};
+
+typedef void (*at_host_event_callback_t)(enum at_host_event event);
+
+/**
+ * @brief Update the AT host event to application.
+ */
+void at_host_update_event(enum at_host_event event);
+
 /**
  * @brief AT command result codes
  */
@@ -218,11 +230,11 @@ int at_send_time_response(uint16_t year, uint8_t month, uint8_t day,
 			  uint8_t hour, uint8_t minute, uint8_t second);
 
 /**
- * 
- * @brief AT Host for door lock application. Provides UART/BLE transport for AT commands.
- * 
+ * @brief Initialize the AT host.
+ * @param event_cb Callback function to handle AT module events.
+ * @return 0 on success, negative error code on failure.
  */
-int at_host_init(void);
+int at_host_init(at_host_event_callback_t event_cb);
 
 /**
  * @brief Callback type for custom AT response handlers (DL_AT_RSP).

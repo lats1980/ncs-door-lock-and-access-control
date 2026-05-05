@@ -21,18 +21,10 @@ LOG_MODULE_REGISTER(at_transport_ble, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
 #define UART_BUF_SIZE 256
 
-namespace at_transport_ble {
-
-static at_transport_state_callback_t s_transport_state_cb;
-
-}  // namespace at_transport_ble
-
 extern "C" {
 
-int at_transport_enable(at_transport_state_callback_t state_cb)
+int at_transport_enable(void)
 {
-	at_transport_ble::s_transport_state_cb = state_cb;
-
 	return 0;
 }
 
@@ -51,16 +43,6 @@ int at_transport_tx(const uint8_t *data, size_t len)
 int at_transport_rx(const uint8_t *data, size_t len)
 {
 	return at_receive(data, len);
-}
-
-void at_transport_set_state(enum at_transport_state state)
-{
-	using namespace at_transport_ble;
-
-	LOG_WRN("AT transport state set: %d", static_cast<int>(state));
-	if (s_transport_state_cb) {
-		s_transport_state_cb(state);
-	}
 }
 
 }  // extern "C"

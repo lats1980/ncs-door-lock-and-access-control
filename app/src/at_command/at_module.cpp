@@ -23,6 +23,8 @@ LOG_MODULE_REGISTER(at_module, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 extern "C" {
 #endif
 
+static at_module_event_callback_t s_event_cb;
+
 static bool s_transport_ready_notified;
 
 static void dl_at_reset_reboot_work_fn(struct k_work *work)
@@ -59,18 +61,6 @@ struct dl_at_cmd_entry {
 
 static struct dl_at_cmd_entry s_custom_cmds[CONFIG_ALIRO_AT_MODULE_MAX_CUSTOM_CMDS];
 static size_t s_custom_cmd_count;
-
-static void s_transport_state_cb(enum at_transport_state state)
-{
-	if (state == AT_TRANSPORT_CONNECTED) {
-		LOG_INF("AT transport connected");
-		if (!s_transport_ready_notified) {
-			k_work_submit(&dl_at_module_ready_work);
-		}
-	} else {
-		LOG_INF("AT transport disconnected");
-	}
-}
 
 static K_SEM_DEFINE(at_time_sem, 0, 1);
 
@@ -126,10 +116,25 @@ static bool dispatch_at_line(const char *line)
 	return false;
 }
 
-int at_module_init(void)
+void at_module_update_event(enum at_module_event event)
+{
+	if (s_event_cb) {
+		if (event == AT_MODULE_TRANSPORT_CONNECTED) {
+			if (!s_transport_ready_notified) {
+				k_work_submit(&dl_at_module_ready_work);
+			}
+		}
+		s_event_cb(event);
+	} else {
+		LOG_WRN("AT module event callback not set");
+	}
+}
+
+int at_module_init(at_module_event_callback_t event_cb)
 {
     LOG_INF("Initializing AT Module");
-    int err = at_transport_enable(s_transport_state_cb);
+	s_event_cb = event_cb;
+    int err = at_transport_enable();
     if (err) {
         LOG_ERR("Failed to enable AT transport: %d", err);
         return err;

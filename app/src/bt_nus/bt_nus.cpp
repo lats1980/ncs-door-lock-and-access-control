@@ -19,6 +19,7 @@
 
 #ifdef CONFIG_ALIRO_AT_MODULE
 #include "at_command/at_transport.h"
+#include "at_command/at_module.h"
 #endif // CONFIG_ALIRO_AT_MODULE
 
 LOG_MODULE_REGISTER(NusService, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
@@ -58,9 +59,9 @@ AliroError NUSService::Start()
 		.send_enabled = [](enum bt_nus_send_status status) {
 			LOG_INF("NUS send enabled status: %d", status);
 			if (status == BT_NUS_SEND_STATUS_ENABLED) {
-				at_transport_set_state(AT_TRANSPORT_CONNECTED);
+				at_module_update_event(AT_MODULE_TRANSPORT_CONNECTED);
 			} else {
-				at_transport_set_state(AT_TRANSPORT_DISCONNECTED);
+				at_module_update_event(AT_MODULE_TRANSPORT_DISCONNECTED);
 			}
 		},
 #endif
@@ -211,7 +212,7 @@ void NUSService::Disconnected(bt_conn *, uint8_t reason)
 	mBTConnection = nullptr;
 	LOG_INF("NUS disconnected (reason: %u)", reason);
 #ifdef CONFIG_ALIRO_AT_MODULE
-	at_transport_set_state(AT_TRANSPORT_DISCONNECTED);
+	at_module_update_event(AT_MODULE_TRANSPORT_DISCONNECTED);
 #endif
 }
 

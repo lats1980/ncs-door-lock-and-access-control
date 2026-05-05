@@ -8,6 +8,7 @@
 
 #include "at_transport.h"
 #include "at_command.h"
+#include "at_host.h"
 
 #include <errno.h>
 #include <string.h>
@@ -31,7 +32,6 @@ LOG_MODULE_REGISTER(at_transport_ble, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 #define NUS_WRITE_TIMEOUT K_MSEC(150)
 
 namespace at_transport_ble {
-static at_transport_state_callback_t s_transport_state_cb;
 
 static struct bt_nus_client nus_client;
 static struct bt_conn *at_nus_conn;
@@ -94,7 +94,7 @@ static void discovery_complete(struct bt_gatt_dm *dm, void *context)
 
 	bt_gatt_dm_data_release(dm);
 
-	at_transport_set_state(AT_TRANSPORT_CONNECTED);
+	at_host_update_event(AT_HOST_TRANSPORT_CONNECTED);
 	k_sem_give(&nus_init_sem);
 }
 
@@ -199,7 +199,7 @@ static void on_disconnected(struct bt_conn *conn, uint8_t reason)
 
 	LOG_INF("AT NUS central disconnected: %s reason 0x%02x %s", addr, reason, bt_hci_err_to_str(reason));
 
-	at_transport_set_state(AT_TRANSPORT_DISCONNECTED);
+	at_host_update_event(AT_HOST_TRANSPORT_DISCONNECTED);
 
 	bt_conn_unref(at_nus_conn);
 	at_nus_conn = nullptr;
@@ -473,10 +473,9 @@ static void start_at_central(void)
 
 extern "C" {
 
-int at_transport_enable(at_transport_state_callback_t state_cb)
+int at_transport_enable(void)
 {
 	LOG_INF("Enabling AT transport over BLE Central");
-	at_transport_ble::s_transport_state_cb = state_cb;
 	at_transport_ble::start_at_central();
 	k_sem_take(&at_transport_ble::nus_init_sem, K_MSEC(5000));
 
@@ -513,16 +512,6 @@ int at_transport_tx(const uint8_t *data, size_t len)
 int at_transport_rx(const uint8_t *data, size_t len)
 {
 	return at_receive(data, len);
-}
-
-void at_transport_set_state(enum at_transport_state state)
-{
-	using namespace at_transport_ble;
-
-	LOG_INF("AT transport state set: %d", state);
-	if (s_transport_state_cb) {
-		s_transport_state_cb(state);
-	}
 }
 
 } /* extern "C" */

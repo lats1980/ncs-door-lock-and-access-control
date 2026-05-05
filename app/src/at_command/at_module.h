@@ -22,6 +22,18 @@ extern "C" {
 #define DL_OK_STR		 "\r\nOK\r\n"
 #define DL_ERROR_STR	 "\r\nERROR\r\n"
 
+enum at_module_event {
+    AT_MODULE_TRANSPORT_DISCONNECTED,
+    AT_MODULE_TRANSPORT_CONNECTED
+};
+
+typedef void (*at_module_event_callback_t)(enum at_module_event event);
+
+/**
+ * @brief Update the AT module event to application.
+ */
+void at_module_update_event(enum at_module_event event);
+
 /** Parsed current time from AT+TIME response (at_send_time_response). */
 struct dl_time {
 	uint16_t year;
@@ -36,9 +48,8 @@ struct dl_time {
 /**
  * @brief AT module for aliro application. Provides UART/BLE transport for AT commands.
  *
- * Includes AT+RESET for warm software reset; after reboot, main sends DL_SYNC_STR.
  */
-int at_module_init(void);
+int at_module_init(at_module_event_callback_t event_cb);
 
 /**
  * @brief Send an unsolicited result code (URC) to the host. URCs are used for asynchronous notifications.

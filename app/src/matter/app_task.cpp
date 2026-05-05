@@ -345,10 +345,33 @@ CHIP_ERROR AppTask::Init()
 	return Nrf::Matter::StartServer();
 }
 
+#if defined(CONFIG_ALIRO_AT_HOST)
+void AppTask::AtHostEventHandler(enum at_host_event event)
+{
+	switch (event) {
+	case AT_HOST_TRANSPORT_CONNECTED:
+		LOG_INF("AT Host transport connected");
+#if defined(CONFIG_ALIRO_AT_TRANSPORT_STATE_INDICATOR)
+		Nrf::PostTask([] { Nrf::GetBoard().GetLED(Nrf::DeviceLeds::LED3).Set(true); });
+#endif
+		break;
+	case AT_HOST_TRANSPORT_DISCONNECTED:
+		LOG_INF("AT Host transport disconnected");
+#if defined(CONFIG_ALIRO_AT_TRANSPORT_STATE_INDICATOR)
+		Nrf::PostTask([] { Nrf::GetBoard().GetLED(Nrf::DeviceLeds::LED3).Set(false); });
+#endif
+		break;
+	default:
+		LOG_WRN("Unknown AT Host event: %d", (int)event);
+		break;
+	}
+}
+#endif
+
 CHIP_ERROR AppTask::StartApp()
 {
 #if defined(CONFIG_ALIRO_AT_HOST)
-	int err = at_host_init();
+	int err = at_host_init(AppTask::AtHostEventHandler);
 	VerifyOrReturnError(err == 0, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to init AT Host"));
 #endif
 	ReturnErrorOnFailure(Init());

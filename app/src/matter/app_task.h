@@ -41,6 +41,9 @@ private:
 	static void ButtonEventHandler(Nrf::ButtonState state, Nrf::ButtonMask hasChanged);
 	static void LockStateChanged(const BoltLockManager::StateData &stateData);
 	static void UpdateClusterStateHandler(const BoltLockManager::StateData &stateData);
+#if defined(CONFIG_ALIRO_AT_HOST)
+	static void AtHostEventHandler(enum at_host_event event);
+#endif
 
 #ifdef CONFIG_CHIP_NUS
 	static void NUSLockCallback(void *context);

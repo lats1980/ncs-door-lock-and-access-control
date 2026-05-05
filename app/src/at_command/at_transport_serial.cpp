@@ -16,6 +16,12 @@
 #include <zephyr/logging/log.h>
 #include <string.h>
 
+#if defined(CONFIG_ALIRO_AT_HOST)
+#include "at_host.h"
+#elif defined(CONFIG_ALIRO_AT_MODULE)
+#include "at_module.h"
+#endif
+
 LOG_MODULE_REGISTER(at_transport_serial, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
 #define UART_WAIT_FOR_RX          50000
@@ -151,6 +157,11 @@ static void uart_work_handler(struct k_work *item)
 	}
 
 	uart_rx_enable(uart_dev, buf->data, sizeof(buf->data), UART_WAIT_FOR_RX);
+#if defined(CONFIG_ALIRO_AT_HOST)
+	at_host_update_event(AT_HOST_TRANSPORT_CONNECTED);
+#elif defined(CONFIG_ALIRO_AT_MODULE)
+	at_module_update_event(AT_MODULE_TRANSPORT_CONNECTED);
+#endif
 }
 
 static int uart_init(void)
@@ -193,7 +204,7 @@ static int uart_init(void)
 
 extern "C" {
 
-int at_transport_enable(at_transport_state_callback_t state_cb)
+int at_transport_enable(void)
 {
 	return at_transport_serial::uart_init();
 }

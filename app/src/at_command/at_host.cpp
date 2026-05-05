@@ -26,6 +26,8 @@ static std::atomic<bool> s_dl_sync_armed;
 static enum at_cmd_state at_cmd_state = AT_CMD_OK;
 static bool at_host_initialized;
 
+static at_host_event_callback_t s_event_cb;
+
 static uint8_t at_cmd_resp_buf[DL_AT_CMD_RESP_BUF_SIZE];
 static size_t at_cmd_resp_len;
 
@@ -138,19 +140,20 @@ static bool dispatch_at_line(const char *line)
 
 extern "C" {
 
-static void s_transport_state_cb(enum at_transport_state state)
+void at_host_update_event(enum at_host_event event)
 {
-	if (state == AT_TRANSPORT_CONNECTED) {
-		LOG_INF("AT transport connected");
+	if (s_event_cb) {
+		s_event_cb(event);
 	} else {
-		LOG_INF("AT transport disconnected");
+		LOG_WRN("AT host event callback not set");
 	}
 }
 
-int at_host_init(void)
+int at_host_init(at_host_event_callback_t event_cb)
 {
+    s_event_cb = event_cb;
     LOG_INF("Initializing AT Host");
-    int err = at_transport_enable(s_transport_state_cb);
+    int err = at_transport_enable();
     if (err) {
         LOG_ERR("Failed to enable AT transport: %d", err);
         return err;
