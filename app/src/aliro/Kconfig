@@ -27,6 +27,7 @@ endif # DOOR_LOCK_BLE_UWB
 config DOOR_LOCK_EXPEDITED_FAST_PHASE
     bool "Support for Aliro Expedited-fast Phase"
     default y if CHIP || MATTER_ON_EXTERNAL_MCU
+    select DOOR_LOCK_EXTERNAL_NVS if !SOC_SERIES_NRF52X
     help
         If enabled, the Expedited-fast phase is supported.
         The user authentication is based on the Kpersistent keys.
@@ -34,7 +35,6 @@ config DOOR_LOCK_EXPEDITED_FAST_PHASE
 config DOOR_LOCK_STEP_UP_PHASE
     bool "Support for Aliro Step-up Phase"
     default y if CHIP || MATTER_ON_EXTERNAL_MCU
-    select DOOR_LOCK_EXTERNAL_NVS if !SOC_SERIES_NRF52X
     help
         If enabled, the Step-up phase is supported.
         The user authentication is based on the Access Document.

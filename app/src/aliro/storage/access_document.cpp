@@ -10,7 +10,16 @@
 #include "aliro/utils.h"
 #include "external_nvs_ids.h"
 
+#if defined(CONFIG_DOOR_LOCK_INTERNAL_ZMS)
+#include <internal_zms/internal_zms.h>
+namespace Nvs = DoorLock::InternalZms;
+#elif defined(CONFIG_DOOR_LOCK_EXTERNAL_NVS)
 #include <external_nvs/external_nvs.h>
+namespace Nvs = DoorLock::ExternalNvs;
+#else
+#error "Either CONFIG_DOOR_LOCK_INTERNAL_ZMS or CONFIG_DOOR_LOCK_EXTERNAL_NVS must be enabled"
+#endif
+
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(access_document, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
@@ -19,10 +28,10 @@ namespace Aliro {
 
 namespace {
 
-DoorLock::ExternalNvs::Id GetExternalNvsId(size_t index)
+Nvs::Id GetExternalNvsId(size_t index)
 {
 	return DoorLock::Storage::ExternalNvsIds::kAccessDocumentRangeStart +
-	       static_cast<DoorLock::ExternalNvs::Id>(index);
+	       static_cast<Nvs::Id>(index);
 }
 
 bool IsIndexInRange(size_t index)
@@ -34,7 +43,7 @@ int ReadAccessDocumentHelper(size_t index, AccessDocument &ad)
 {
 	const auto id = GetExternalNvsId(index);
 	size_t len = sizeof(AccessDocument);
-	const auto error = DoorLock::ExternalNvs::Read(id, &ad, len);
+	const auto error = Nvs::Read(id, &ad, len);
 
 	if (error != 0) {
 		return error;
@@ -81,7 +90,7 @@ AliroError StoreAccessDocument(size_t index, const AccessDocument &ad)
 			     LOG_ERR("Access Document index out of range: %zu", index));
 
 	const auto id = GetExternalNvsId(index);
-	const auto error = DoorLock::ExternalNvs::Write(id, &ad, sizeof(AccessDocument));
+	const auto error = Nvs::Write(id, &ad, sizeof(AccessDocument));
 	VerifyOrReturnStatus(error == 0, AliroError::FromInt(error),
 			     LOG_ERR("Failed to store Access Document at index: %zu", index));
 
@@ -106,7 +115,7 @@ AliroError ClearAccessDocument(size_t index)
 			     LOG_ERR("Access Document index out of range: %zu", index));
 
 	const auto id = GetExternalNvsId(index);
-	const auto error = DoorLock::ExternalNvs::Delete(id);
+	const auto error = Nvs::Delete(id);
 	VerifyOrReturnStatus(error == 0, AliroError::FromInt(error),
 			     LOG_ERR("Failed to clear Access Document at index: %zu", index));
 

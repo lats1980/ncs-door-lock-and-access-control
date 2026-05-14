@@ -32,10 +32,13 @@
 #include "access_document.h"
 #endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE AND CONFIG_DOOR_LOCK_STORAGE_MAX_STORED_ACCESS_DOCUMENTS > 0
 
-#ifdef CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#if defined(CONFIG_DOOR_LOCK_INTERNAL_ZMS)
+#include <internal_zms/internal_zms.h>
+#include <zephyr/storage/flash_map.h>
+#elif defined(CONFIG_DOOR_LOCK_EXTERNAL_NVS)
 #include <external_nvs/external_nvs.h>
 #include <zephyr/storage/flash_map.h>
-#endif // CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#endif
 
 #ifdef CONFIG_DOOR_LOCK_CLI
 #include "shell.h"
@@ -330,10 +333,13 @@ int AliroInit()
 
 #endif // CONFIG_CHIP
 
-#ifdef CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#if defined(CONFIG_DOOR_LOCK_INTERNAL_ZMS)
+	auto initRc = DoorLock::InternalZms::Init(FIXED_PARTITION_ID(internal_zms));
+	VerifyOrReturnValue(initRc == 0, EXIT_FAILURE, LOG_ERR("Internal ZMS init failed: %d", initRc));
+#elif defined(CONFIG_DOOR_LOCK_EXTERNAL_NVS)
 	auto initRc = DoorLock::ExternalNvs::Init(FIXED_PARTITION_ID(external_nvs));
 	VerifyOrReturnValue(initRc == 0, EXIT_FAILURE, LOG_ERR("External NVS init failed: %d", initRc));
-#endif // CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#endif
 
 #if defined(CONFIG_DOOR_LOCK_STEP_UP_PHASE) && CONFIG_DOOR_LOCK_STORAGE_MAX_STORED_ACCESS_DOCUMENTS > 0
 	ec = LoadAccessDocuments();
@@ -460,14 +466,19 @@ void ClearStorageAliro(bool reinitializeStorage)
 
 #endif // CONFIG_DOOR_LOCK_EXPEDITED_FAST_PHASE
 
-#ifdef CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#if defined(CONFIG_DOOR_LOCK_INTERNAL_ZMS)
+	DoorLock::InternalZms::Clear();
+	if (reinitializeStorage) {
+		DoorLock::InternalZms::Init(FIXED_PARTITION_ID(internal_zms));
+	}
+#elif defined(CONFIG_DOOR_LOCK_EXTERNAL_NVS)
 	DoorLock::ExternalNvs::Clear();
 	if (reinitializeStorage) {
 		DoorLock::ExternalNvs::Init(FIXED_PARTITION_ID(external_nvs));
 	}
-#else // CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#else
 	ARG_UNUSED(reinitializeStorage);
-#endif // CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#endif
 }
 
 #endif // CONFIG_CHIP || CONFIG_MATTER_ON_EXTERNAL_MCU

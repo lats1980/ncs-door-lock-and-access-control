@@ -7,5 +7,6 @@
 menu "Door Lock Subsystems"
 
 rsource "external_nvs/Kconfig"
+rsource "internal_zms/Kconfig"
 
 endmenu
