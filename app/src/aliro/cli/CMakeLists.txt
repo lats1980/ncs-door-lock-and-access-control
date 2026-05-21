@@ -12,7 +12,7 @@ zephyr_library_sources(
 
 zephyr_library_sources_ifdef(CONFIG_BT btaddr.cpp)
 zephyr_library_sources_ifdef(CONFIG_DOOR_LOCK_EXPEDITED_FAST_PHASE kpersistent.cpp)
-if (NOT CONFIG_CHIP AND NOT CONFIG_MATTER_ON_EXTERNAL_MCU)
+if (NOT CONFIG_CHIP)
 zephyr_library_sources(
   factory_reset.cpp
   provisioning.cpp

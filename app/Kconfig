@@ -24,7 +24,7 @@ config ALIRO_ON_EXTERNAL_MCU
 
 config DOOR_LOCK_CLI
 	bool "CLI support"
-	default y if (!DOOR_LOCK_RELEASE || !CHIP)
+	default y if (!DOOR_LOCK_RELEASE || (!CHIP && !MATTER_ON_EXTERNAL_MCU))
 	select SHELL
 	select REBOOT
 	help
