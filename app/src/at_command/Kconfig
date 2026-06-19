@@ -20,11 +20,26 @@ config ALIRO_AT_HOST
 config ALIRO_AT_TRANSPORT_SERIAL
   bool "AT serial transport"
   default y
-  depends on SERIAL
+  select SERIAL
   select UART_ASYNC_API
-  select SHELL_ASYNC_API
   help
     Use serial transport for AT (async UART with TX/RX FIFOs).
+
+config ALIRO_AT_UART_PM
+  bool "UART power management for AT transport"
+  default y
+  depends on ALIRO_AT_TRANSPORT_SERIAL && PM_DEVICE
+  select GPIO
+  help
+    Suspend UART after an idle timeout and wake on RX pin activity.
+
+config ALIRO_AT_UART_IDLE_TIMEOUT_MS
+  int "UART idle timeout before power save (ms)"
+  default 5000
+  depends on ALIRO_AT_UART_PM
+  range 100 60000
+  help
+    Time without TX/RX activity before UART enters power save mode.
 
 config ALIRO_AT_COMMAND_BUF_SIZE
   int "UART buffer size for TX and RX"

@@ -25,7 +25,7 @@ static void nxp_nfc_debug_format_hex(char *dest, size_t dest_size, const uint8_t
 	size_t pos = 0;
 
 	for (uint8_t i = 0; i < num && pos + 2 < dest_size; i++) {
-		pos += snprintk(dest + pos, dest_size - pos, "%02X", buff[i]);
+		pos += snprintf(dest + pos, dest_size - pos, "%02X", buff[i]);
 	}
 }
 
