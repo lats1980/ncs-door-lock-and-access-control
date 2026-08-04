@@ -1,0 +1,18 @@
+# Copyright (c) 2020 Nordic Semiconductor ASA
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+
+description: |
+    NXP PN5190 NFC Initiator / HF Reader
+
+compatible: "nxp,pn5190"
+
+include: spi-device.yaml
+
+properties:
+    irq-gpios:
+      type: phandle-array
+      required: true
+
+    reset-gpios:
+      type: phandle-array
+      required: true
