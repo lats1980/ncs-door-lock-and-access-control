@@ -9,10 +9,15 @@
 LOG_MODULE_DECLARE(nxp_nfc_platform, CONFIG_NFC_LOG_LEVEL);
 
 static const struct gpio_dt_spec irq_gpio =
-    GPIO_DT_SPEC_GET(DT_INST(0, nxp_pn5190), irq_gpios);
+    GPIO_DT_SPEC_GET(NXP_NFC_NODE, irq_gpios);
 
 static const struct gpio_dt_spec reset_gpio =
-    GPIO_DT_SPEC_GET(DT_INST(0, nxp_pn5190), reset_gpios);
+    GPIO_DT_SPEC_GET(NXP_NFC_NODE, reset_gpios);
+
+#if defined(CONFIG_PN5180_DRV)
+static const struct gpio_dt_spec busy_gpio =
+    GPIO_DT_SPEC_GET(NXP_NFC_NODE, busy_gpios);
+#endif
 
 static pphDriver_TimerCallBck_t palTimerCallback;
 
@@ -148,7 +153,11 @@ uint8_t phDriver_PinRead(uint32_t dwPinNumber, phDriver_Pin_Func_t ePinFunc)
 	if (dwPinNumber == irq_gpio.pin) {
 		return (uint8_t)gpio_pin_get(irq_gpio.port, irq_gpio.pin);
 	}
-
+#if defined(CONFIG_PN5180_DRV)
+    if (dwPinNumber == busy_gpio.pin) {
+        return (uint8_t)gpio_pin_get(busy_gpio.port, busy_gpio.pin);
+    }
+#endif
 	if (dwPinNumber == reset_gpio.pin) {
 		return dt_input_to_logical_level(&reset_gpio);
 	}

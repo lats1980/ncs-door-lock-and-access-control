@@ -16,9 +16,9 @@ phhalHw_Pn5180_DataParams_t *hal;
 phStatus_t disc_loop_configure_lpcd(void)
 {
 	phStatus_t status;
-	const uint8_t lpcd_threshold_eeprom_addr = 0x37U;
-	const uint8_t lpcd_threshold = 0x10U;
-	const uint16_t lpcd_mode = PHHAL_HW_PN5180_LPCD_MODE_POWERDOWN;
+	uint8_t lpcd_threshold_eeprom_addr = 0x37U;
+	uint8_t lpcd_threshold = 0x10U;
+	uint16_t lpcd_mode = PHHAL_HW_PN5180_LPCD_MODE_POWERDOWN;
 
 	status = phhalHw_Pn5180_Instr_WriteE2Prom(hal, lpcd_threshold_eeprom_addr,
 						  &lpcd_threshold, 1U);

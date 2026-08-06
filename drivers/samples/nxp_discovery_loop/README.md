@@ -18,12 +18,16 @@ Chip-specific logic (IRQ handling and LPCD calibration) lives in `src/disc_loop_
 ## Requirements
 
 - [nRF54L15 DK](https://docs.nordicsemi.com/bundle/ncs-latest/page/zephyr/boards/nordic/nrf54l15dk/doc/index.html)
-- PNEV5190B
+- PNEV5190B or PNEV5180B evaluation board
 - NXP NFC Reader Library 07.16 installed under `drivers/nfc/nxp/NxpNfcRdLib/` (see [NXP driver README](../../nfc/nxp/README.md))
 
-## Pin mapping (nRF54L15 DK ↔ PN5190 EB)
+## Pin mapping (nRF54L15 DK ↔ NXP evaluation board)
 
-Wire the nRF54L15 DK to the PNEV5190B host interface as shown below. Pin assignments are defined in `boards/nrf54l15dk_nrf54l15_cpuapp.overlay`.
+Pin assignments are defined in `overlay-pn5190.overlay` or `overlay-pn5180.overlay`, depending on the NFC frontend used. The board-specific overlay in `boards/nrf54l15dk_nrf54l15_cpuapp.overlay` only enables GPIO and external flash; it does not configure the NFC interface.
+
+### PN5190 (PNEV5190B)
+
+Wire the nRF54L15 DK to the PNEV5190B host interface as shown below.
 
 The PNEV5190B is **independently powered**. Use its own power supply; do not connect VDDIO from the nRF54L15 DK. Connect GND between the boards for a common ground reference.
 
@@ -37,14 +41,44 @@ The PNEV5190B is **independently powered**. Use its own power supply; do not con
 | P2.06       | RESET (RST)            |
 | GND         | GND                    |
 
-> **Note:** The board overlay disables buttons and LEDs that share pins with the NFC interface (P0.04 IRQ and P1.13 SCK).
+### PN5180 (PNEV5180B)
+
+Wire the nRF54L15 DK to the PNEV5180B host interface as shown below.
+
+Connect **5V ↔ 5V** and **VDDIO ↔ 3.3V** between the nRF54L15 DK and the PNEV5180B. Connect GND between the boards for a common ground reference.
+
+| nRF54L15 DK | PN5180 EB (PNEV5180B) |
+|-------------|------------------------|
+| P1.13       | SPI_CLK (SCK)          |
+| P1.12       | SPI_MISO (MISO)        |
+| P1.11       | SPI_MOSI (MOSI)        |
+| P2.08       | SPI_NSS (NSS)          |
+| P0.04       | IRQ                    |
+| P1.08       | BUSY                   |
+| P2.06       | RESET (RST)            |
+| 5V          | 5V                     |
+| VDDIO       | 3.3V (VDD)             |
+| GND         | GND                    |
+
+> **Note:** The chip-specific overlays disable buttons and LEDs that share pins with the NFC interface (for example P0.04 IRQ, P1.08 BUSY, and P1.13 SCK).
 
 ## Building and running
 
-From the repository root:
+From the repository root, pass the overlay that matches your evaluation board and select the corresponding HAL in Kconfig.
+
+**PN5190 (default):**
 
 ```bash
-west build -p -b nrf54l15dk/nrf54l15/cpuapp drivers/samples/nxp_discovery_loop
+west build -p -b nrf54l15dk/nrf54l15/cpuapp drivers/samples/nxp_discovery_loop \
+  -- -DEXTRA_DTC_OVERLAY_FILE="overlay-pn5190.overlay"
+west flash
+```
+
+**PN5180:**
+
+```bash
+west build -p -b nrf54l15dk/nrf54l15/cpuapp drivers/samples/nxp_discovery_loop \
+  -- -DEXTRA_DTC_OVERLAY_FILE="overlay-pn5180.overlay" -DCONFIG_PN5180_DRV=y
 west flash
 ```
 
@@ -77,4 +111,6 @@ CONFIG_NCS_NXP_DISCOVERY_LOOP_LPCD=n
 | `src/disc_loop_config.c` | Discovery loop profile configuration |
 | `src/disc_loop_pn5190.c` | PN5190 IRQ handler and LPCD setup |
 | `src/disc_loop_pn5180.c` | PN5180 IRQ handler and LPCD setup |
-| `boards/nrf54l15dk_nrf54l15_cpuapp.overlay` | Devicetree overlay for SPI and GPIO pins |
+| `boards/nrf54l15dk_nrf54l15_cpuapp.overlay` | Board overlay (GPIO and external flash) |
+| `overlay-pn5190.overlay` | Devicetree overlay for PN5190 SPI and GPIO pins |
+| `overlay-pn5180.overlay` | Devicetree overlay for PN5180 SPI and GPIO pins |

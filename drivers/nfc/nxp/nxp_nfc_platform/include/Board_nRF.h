@@ -8,24 +8,33 @@
 #ifndef BOARD_NRF_H
 #define BOARD_NRF_H
 
-/*
- * Below header file is required to fix compile error for __DSB and __ISB in Zephyr build.
- * The __DSB and __ISB are used in phhalHw_Pn5190_Int.c to ensure that the memory accesses are completed before proceeding.
-*/
-#include "cmsis_gcc.h"
 #include <ph_Status.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/gpio.h>
 
 /******************************************************************
  * Board Pin/Gpio configurations
- * RESET/IRQ pin numbers are taken from the "nxp,pn5190" devicetree
- * node (reset-gpios / irq-gpios) defined in the board overlay.
+ * Pin numbers are taken from the "nxp,pn5190" or "nxp,pn5180"
+ * devicetree node (reset-gpios / irq-gpios / busy-gpios) defined
+ * in the board overlay, selected by CONFIG_PN5190_DRV or
+ * CONFIG_PN5180_DRV.
  ******************************************************************/
-#define PHDRIVER_PIN_RESET          DT_GPIO_PIN(DT_INST(0, nxp_pn5190), reset_gpios)
-#define PHDRIVER_PIN_IRQ            DT_GPIO_PIN(DT_INST(0, nxp_pn5190), irq_gpios)
+#if defined(CONFIG_PN5190_DRV)
+#define NXP_NFC_NODE                DT_INST(0, nxp_pn5190)
+#elif defined(CONFIG_PN5180_DRV)
+#define NXP_NFC_NODE                DT_INST(0, nxp_pn5180)
+#else
+#error "NXP NFC driver not selected (CONFIG_PN5190_DRV or CONFIG_PN5180_DRV)"
+#endif
+
+#define PHDRIVER_PIN_RESET          DT_GPIO_PIN(NXP_NFC_NODE, reset_gpios)
+#define PHDRIVER_PIN_IRQ            DT_GPIO_PIN(NXP_NFC_NODE, irq_gpios)
 #define PHDRIVER_PIN_DWL            0xFFFF /** No functionality. To suppress build error in HAL. */
+#if defined(CONFIG_PN5180_DRV)
+#define PHDRIVER_PIN_BUSY           DT_GPIO_PIN(NXP_NFC_NODE, busy_gpios)
+#else
 #define PHDRIVER_PIN_BUSY           PHDRIVER_PIN_IRQ
+#endif
 
 /******************************************************************
  * PIN Pull-Up/Pull-Down configurations.

@@ -23,6 +23,7 @@ config PN5190_DRV
 	select SPI
 
 config PN5180_DRV
+	select SPI
 	bool "NFC PN5180 driver"
 
 endchoice

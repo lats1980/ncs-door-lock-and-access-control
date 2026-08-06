@@ -1,17 +1,19 @@
+#include <Board_nRF.h>
 #include "phDriver.h"
 
 #include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/spi.h>
-
-#define PN5190_NODE                           DT_INST(0, nxp_pn5190)
+#include <zephyr/kernel.h>
 
 /*
- * SPI device the PN5190 is connected to, as described in the board overlay (e.g. &spi1
- * with cs-gpios). Chip-select (NSS) is asserted/deasserted automatically by Zephyr around
- * each spi_transceive_dt() call, based on the "cs-gpios" property of the bus node.
+ * SPI device the PN5180/PN5190 is connected to, as described in the board overlay
+ * (e.g. &spi1 with cs-gpios). Chip-select (NSS) is asserted/deasserted automatically
+ * by Zephyr around each spi_transceive_dt() call, based on the "cs-gpios" property
+ * of the bus node.
  */
 static const struct spi_dt_spec spi_dev = SPI_DT_SPEC_GET(
-    PN5190_NODE, SPI_WORD_SET(8) | SPI_TRANSFER_MSB | SPI_OP_MODE_MASTER, 0);
+    NXP_NFC_NODE, SPI_WORD_SET(8) | SPI_TRANSFER_MSB | SPI_OP_MODE_MASTER, 0);
 
 phStatus_t phbalReg_Init(
                          void * pDataParams,
@@ -29,7 +31,7 @@ phStatus_t phbalReg_Init(
     }
 
     ((phbalReg_Type_t *)pDataParams)->wId      = PH_COMP_DRIVER;
-    ((phbalReg_Type_t *)pDataParams)->bBalType = PHBAL_REG_TYPE_KERNEL_SPI;
+    ((phbalReg_Type_t *)pDataParams)->bBalType = PHBAL_REG_TYPE_SPI;
 
     return PH_DRIVER_SUCCESS;
 }

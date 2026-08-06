@@ -213,5 +213,5 @@ if(CONFIG_NFC_NXP_DEBUG_HELPERS)
 endif()
 
 zephyr_library_named(nxp_nfc_rdlib)
-zephyr_library_compile_options(-Wno-double-promotion)
+zephyr_library_compile_options(-Wno-double-promotion -Wno-memset-elt-size)
 zephyr_library_sources(${nxp_nfc_rdlib_sources})

@@ -25,7 +25,12 @@ LOG_MODULE_REGISTER(nxp_nfc_platform, CONFIG_NFC_LOG_LEVEL);
 static phbalReg_Type_t bal_params;
 
 static const struct gpio_dt_spec reset_gpio =
-	GPIO_DT_SPEC_GET(DT_INST(0, nxp_pn5190), reset_gpios);
+	GPIO_DT_SPEC_GET(NXP_NFC_NODE, reset_gpios);
+
+#if defined(CONFIG_PN5180_DRV)
+static const struct gpio_dt_spec busy_gpio =
+	GPIO_DT_SPEC_GET(NXP_NFC_NODE, busy_gpios);
+#endif
 
 static K_THREAD_STACK_DEFINE(irq_task_stack, NXP_NFC_IRQ_TASK_STACK);
 static struct k_thread irq_task_data;
@@ -65,7 +70,19 @@ int nxp_nfc_init(void)
 		LOG_ERR("Configuring reset GPIO pin failed: %d", err);
 		return err;
 	}
+#if defined(CONFIG_PN5180_DRV)
+    if (!gpio_is_ready_dt(&busy_gpio))
+    {
+        LOG_ERR("Busy GPIO device not ready");
+		return -ENODEV;
+    }
 
+    err = gpio_pin_configure_dt(&busy_gpio, GPIO_INPUT);
+    if (err) {
+        LOG_ERR("Configuring busy GPIO pin failed: %d", err);
+        return err;
+    }
+#endif
 	status = phDriver_ConfigureIrqPin();
 	if (status != PH_DRIVER_SUCCESS) {
 		LOG_ERR("phDriver_ConfigureIrqPin failed: 0x%04X", status);

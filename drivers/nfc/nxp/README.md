@@ -25,7 +25,7 @@ drivers/nfc/nxp/
 | **BAL** (Bus Abstraction Layer) | `phbalReg_ZephyrSpi.c` | SPI communication with the PN5190/PN5180 via Zephyr SPI |
 | **OSAL** (OS Abstraction Layer) | `phOsal_Zephyr.c` | Events, semaphores, and timing using Zephyr kernel primitives |
 | **Platform init** | `nxp_nfc.c` | Library initialization and IRQ monitor thread |
-| **Board config** | `Board_nRF.h` | Pin definitions mapped from devicetree (`nxp,pn5190` node) |
+| **Board config** | `Board_nRF.h` | Pin definitions mapped from devicetree (`nxp,pn5190` node or `nxp,pn5180` node) |
 | **Build config** | `ph_NxpBuild_App.h` | Application-level NXP Reader Library component selection |
 
 The OSAL headers in `nxp_nfc_platform/include` are placed ahead of the NXP library include paths so the Zephyr wrappers shadow the stock NXP headers without changing NXP source files.
