@@ -4,5 +4,5 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
-add_subdirectory_ifdef(CONFIG_NFC_DRIVER_STM stm)
-add_subdirectory_ifdef(CONFIG_NFC_DRIVER_NXP nxp)
+config NFC_DRIVER_NXP
+	default y
