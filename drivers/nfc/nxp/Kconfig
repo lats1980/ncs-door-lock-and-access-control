@@ -36,28 +36,24 @@ config NFC_NXP_HW_TARGET
 
 config NFC_NXP_PAL_I14443P3A
 	bool "PAL ISO 14443-3A (Type A Layer 3)"
-	default y
 	help
 	  Include the NXP Reader Library PAL ISO 14443-3A software component.
 	  Corresponds to NXPBUILD__PHPAL_I14443P3A_SW.
 
 config NFC_NXP_PAL_I14443P3B
 	bool "PAL ISO 14443-3B (Type B Layer 3)"
-	default y
 	help
 	  Include the NXP Reader Library PAL ISO 14443-3B software component.
 	  Corresponds to NXPBUILD__PHPAL_I14443P3B_SW.
 
 config NFC_NXP_PAL_I14443P4A
 	bool "PAL ISO 14443-4A (Type A Layer 4 activation)"
-	default y
 	help
 	  Include the NXP Reader Library PAL ISO 14443-4A software component.
 	  Corresponds to NXPBUILD__PHPAL_I14443P4A_SW.
 
 config NFC_NXP_PAL_I14443P4
 	bool "PAL ISO 14443-4 (Layer 4 transport)"
-	default y
 	help
 	  Include the NXP Reader Library PAL ISO 14443-4 software component.
 	  Corresponds to NXPBUILD__PHPAL_I14443P4_SW.

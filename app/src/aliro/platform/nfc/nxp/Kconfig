@@ -10,13 +10,6 @@ if NFC_DRIVER_NXP
 
 menu "NFC"
 
-config NCS_NXP_DISCOVERY_LOOP_DISC_CONFIG
-	bool "Configure discovery loop profile settings"
-	default y
-	help
-	  Apply discovery loop profile configuration via
-	  nxp_nfc_discovery_apply_profile() instead of using Reader Library defaults.
-
 config NCS_NXP_DISCOVERY_LOOP_LPCD
 	bool "Low power card detection (LPCD)"
 	default y

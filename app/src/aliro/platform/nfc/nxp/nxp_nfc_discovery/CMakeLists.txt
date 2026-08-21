@@ -8,7 +8,6 @@
 
 zephyr_include_directories(.)
 
-zephyr_library_sources(nxp_nfc_discovery_config.c)
 if(CONFIG_PN5190_DRV)
   zephyr_library_sources(nxp_pn5190_platform.c)
 elseif(CONFIG_PN5180_DRV)

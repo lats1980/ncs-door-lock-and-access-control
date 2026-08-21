@@ -1,7 +1,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-#include "nxp_nfc_discovery_config.h"
+#include "nxp_nfc_discovery_platform.h"
 #include <nxp_nfc_debug.h>
 
 LOG_MODULE_DECLARE(nfc_st_NxpNfcRdLib_impl, CONFIG_DOOR_LOCK_NXPNFCRDLIB_LOG_LEVEL);
@@ -13,11 +13,7 @@ phacDiscLoop_Sw_DataParams_t *s_disc_loop_params;
 K_THREAD_STACK_DEFINE(nxp_nfc_discovery_thread_stack, NXP_NFC_DISCOVERY_THREAD_STACK_SIZE);
 static struct k_thread nxp_nfc_discovery_thread_data;
 
-#if defined(CONFIG_NFC_NXP_PAL_I14443P3A) && \
-	defined(CONFIG_NFC_NXP_PAL_I14443P4A) && \
-	defined(CONFIG_NFC_NXP_PAL_I14443P4)
 static uint8_t type_a_ats_buf[64];
-#endif
 
 static uint16_t saved_poll_tech_cfg;
 
@@ -164,6 +160,77 @@ static uint16_t nxp_nfc_discovery_handle_status(uint16_t entry_point, phStatus_t
 	return PHAC_DISCLOOP_ENTRY_POINT_POLL;
 }
 
+static phStatus_t nxp_nfc_discovery_configure(phacDiscLoop_Sw_DataParams_t *disc_loop_params)
+{
+	phStatus_t status = PH_ERR_SUCCESS;
+	uint16_t pas_poll_config = 0;
+
+	pas_poll_config |= PHAC_DISCLOOP_POS_BIT_MASK_A;
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_BAIL_OUT, 0x00);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_BAIL_OUT failed: 0x%04x", status);
+		return status;
+	}
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG,
+					pas_poll_config);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG failed: 0x%04x",
+			status);
+		return status;
+	}
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_ACT_POLL_TECH_CFG, 0);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_ACT_POLL_TECH_CFG failed: 0x%04x",
+			status);
+		return status;
+	}
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_COLLISION_PENDING, PH_OFF);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_COLLISION_PENDING failed: 0x%04x",
+			status);
+		return status;
+	}
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_ANTI_COLL, PH_ON);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_ANTI_COLL failed: 0x%04x", status);
+		return status;
+	}
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_NEXT_POLL_STATE,
+					PHAC_DISCLOOP_POLL_STATE_DETECTION);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_NEXT_POLL_STATE failed: 0x%04x",
+			status);
+		return status;
+	}
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_TYPEA_DEVICE_LIMIT, 1);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_TYPEA_DEVICE_LIMIT failed: 0x%04x",
+			status);
+		return status;
+	}
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_GTA_VALUE_US, 5100);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_GTA_VALUE_US failed: 0x%04x", status);
+		return status;
+	}
+
+	status = phacDiscLoop_SetConfig(disc_loop_params, PHAC_DISCLOOP_CONFIG_OPE_MODE, RD_LIB_MODE_NFC);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_OPE_MODE failed: 0x%04x", status);
+		return status;
+	}
+
+	return status;
+}
+
 static void nxp_nfc_discovery_worker(void *p1, void *p2, void *p3);
 
 int nxp_nfc_lib_init(void)
@@ -191,11 +258,7 @@ int nxp_nfc_discovery_start(void)
 		hal = phNfcLib_GetDataParams(PH_COMP_HAL);
 		s_disc_loop_params = phNfcLib_GetDataParams(PH_COMP_AC_DISCLOOP);
 
-#if defined(CONFIG_NFC_NXP_PAL_I14443P3A) && \
-	defined(CONFIG_NFC_NXP_PAL_I14443P4A) && \
-	defined(CONFIG_NFC_NXP_PAL_I14443P4)
 		s_disc_loop_params->sTypeATargetInfo.sTypeA_I3P4.pAts = type_a_ats_buf;
-#endif
 
 		if (nxp_nfc_start_irq_monitor(nxp_nfc_irq_handler) != 0) {
 			ret = -1;
@@ -218,8 +281,8 @@ int nxp_nfc_discovery_start(void)
 /**
  * Run NFC discovery in poll mode.
  *
- * Detects and reports NFC technology types. Optionally applies a discovery
- * profile and enables LPCD based on Kconfig. Does not return.
+ * Applies fixed Aliro discovery settings and optionally enables LPCD based on
+ * Kconfig. Does not return.
  */
 static void nxp_nfc_discovery_worker(void *p1, void *p2, void *p3)
 {
@@ -230,15 +293,12 @@ static void nxp_nfc_discovery_worker(void *p1, void *p2, void *p3)
 	phStatus_t status;
 	phStatus_t tmp_status;
 	uint16_t entry_point;
-#ifdef CONFIG_NCS_NXP_DISCOVERY_LOOP_DISC_CONFIG
-	phacDiscLoop_Profile_t profile = PHAC_DISCLOOP_PROFILE_NFC;
 
-	status = nxp_nfc_discovery_apply_profile(s_disc_loop_params, profile);
+	status = nxp_nfc_discovery_configure(s_disc_loop_params);
 	if (status != PH_ERR_SUCCESS) {
-		LOG_ERR("nxp_nfc_discovery_apply_profile failed: 0x%04x", status);
+		LOG_ERR("nxp_nfc_discovery_configure failed: 0x%04x", status);
 		return;
 	}
-#endif /* CONFIG_NCS_NXP_DISCOVERY_LOOP_DISC_CONFIG */
 
 	status = phacDiscLoop_GetConfig(s_disc_loop_params, PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG,
 					&saved_poll_tech_cfg);

@@ -1,5 +1,5 @@
-#ifndef NXP_NFC_DISCOVERY_CONFIG_H
-#define NXP_NFC_DISCOVERY_CONFIG_H
+#ifndef NXP_NFC_DISCOVERY_PLATFORM_H
+#define NXP_NFC_DISCOVERY_PLATFORM_H
 
 #include <nxp_nfc.h>
 
@@ -17,9 +17,4 @@ extern phhalHw_Pn5190_DataParams_t *hal;
 extern phStatus_t nxp_nfc_configure_lpcd(void);
 extern void nxp_nfc_irq_handler(void);
 
-#ifdef CONFIG_NCS_NXP_DISCOVERY_LOOP_DISC_CONFIG
-phStatus_t nxp_nfc_discovery_apply_profile(phacDiscLoop_Sw_DataParams_t *disc_loop_params,
-					   phacDiscLoop_Profile_t profile);
-#endif /* CONFIG_NCS_NXP_DISCOVERY_LOOP_DISC_CONFIG */
-
-#endif /* NXP_NFC_DISCOVERY_CONFIG_H */
+#endif /* NXP_NFC_DISCOVERY_PLATFORM_H */

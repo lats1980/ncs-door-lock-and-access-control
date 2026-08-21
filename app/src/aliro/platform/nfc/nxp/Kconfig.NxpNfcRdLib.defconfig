@@ -6,3 +6,12 @@
 
 config NFC_DRIVER_NXP
 	default y
+
+config NFC_NXP_PAL_I14443P3A
+	default y
+
+config NFC_NXP_PAL_I14443P4A
+	default y
+
+config NFC_NXP_PAL_I14443P4
+	default y

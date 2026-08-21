@@ -2,7 +2,7 @@
 
 #ifdef NXPBUILD__PHHAL_HW_PN5180
 
-#include "nxp_nfc_discovery_config.h"
+#include "nxp_nfc_discovery_platform.h"
 
 #include <BoardSelection.h>
 #include <phhalHw_Pn5180_Instr.h>
