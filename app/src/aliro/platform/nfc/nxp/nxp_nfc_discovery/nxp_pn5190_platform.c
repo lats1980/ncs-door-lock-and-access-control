@@ -2,7 +2,7 @@
 
 #ifdef NXPBUILD__PHHAL_HW_PN5190
 
-#include "disc_loop_config.h"
+#include "nxp_nfc_discovery_config.h"
 
 #include <BoardSelection.h>
 #include <phbalReg.h>
@@ -76,7 +76,7 @@ static void pn5190_async_callback(void)
 	}
 }
 
-phStatus_t disc_loop_configure_lpcd(void)
+phStatus_t nxp_nfc_configure_lpcd(void)
 {
 	phStatus_t status = PH_ERR_SUCCESS;
 
@@ -132,7 +132,7 @@ phStatus_t disc_loop_configure_lpcd(void)
 	return status;
 }
 
-void disc_loop_irq_handler(void)
+void nxp_nfc_irq_handler(void)
 {
 	if (phDriver_PinRead(PHDRIVER_PIN_IRQ, PH_DRIVER_PINFUNC_INTERRUPT)) {
 		phDriver_PinClearIntStatus(PHDRIVER_PIN_IRQ);

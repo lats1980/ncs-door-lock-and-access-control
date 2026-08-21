@@ -6,6 +6,8 @@
 
 rsource "Kconfig.rfal.defconfig"
 
+if NFC_DRIVER_STM
+
 menu "NFC"
 
 # Prompt-less option only for internal tuning of the RFAL worker.
@@ -72,3 +74,5 @@ module-help = Enables Door Lock NFC RFAL log messages.
 source "$(ZEPHYR_BASE)/subsys/logging/Kconfig.template.log_config"
 
 endmenu # NFC
+
+endif # NFC_DRIVER_STM

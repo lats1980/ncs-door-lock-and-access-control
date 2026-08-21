@@ -8,13 +8,12 @@
 
 zephyr_include_directories(.)
 
-# Core NxpNfcRdLib transport implementation
-zephyr_library_sources(disc_loop_config.c)
+zephyr_library_sources(nxp_nfc_discovery_config.c)
 if(CONFIG_PN5190_DRV)
-  zephyr_library_sources(disc_loop_pn5190.c)
+  zephyr_library_sources(nxp_pn5190_platform.c)
 elseif(CONFIG_PN5180_DRV)
-  zephyr_library_sources(disc_loop_pn5180.c)
+  zephyr_library_sources(nxp_pn5180_platform.c)
 else()
   message(FATAL_ERROR "NXP NFC HAL driver not selected (PN5190_DRV or PN5180_DRV)")
 endif()
-zephyr_library_sources(disc_loop_entry.c)
+zephyr_library_sources(nxp_nfc_discovery.c)

@@ -5,15 +5,10 @@
  */
 
 #include "nfc_transport_NxpNfcRdLib.h"
-#include "disc_loop_entry/aliro_nxp_nfc_lib_interface.h"
+#include "nxp_nfc_discovery/nxp_nfc_platform.h"
 
 #include "aliro/aliro.h"
-#include "aliro/aliro_work/aliro_work.h"
 #include "aliro/utils.h"
-
-#ifdef CONFIG_DOOR_LOCK_NFC_PROP
-#include "nfc_transport_NxpNfcRdLib_prop.h"
-#endif // CONFIG_DOOR_LOCK_NFC_PROP
 
 #include <zephyr/logging/log.h>
 
@@ -47,8 +42,8 @@ AliroError NfcTransportNxpNfcRdLib::Start()
 		return ALIRO_NO_ERROR;
 	}
 
-	err = disc_loop_pn5190_entry();
-	VerifyOrReturnStatus(err == 0, ALIRO_ERROR_INTERNAL, LOG_ERR("NxpNfcRdLib: disc_loop_pn5190_entry failed %d", err));
+	err = nxp_nfc_discovery_start();
+	VerifyOrReturnStatus(err == 0, ALIRO_ERROR_INTERNAL, LOG_ERR("NxpNfcRdLib: nxp_nfc_discovery_start failed %d", err));
 
 	atomic_set(&mStarted, true);
 

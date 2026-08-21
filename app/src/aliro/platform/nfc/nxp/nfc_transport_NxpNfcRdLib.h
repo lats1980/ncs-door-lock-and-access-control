@@ -12,14 +12,11 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 
-#include <array>
-
 namespace Aliro {
 
 /**
- * @class NfcTransportRfal
- * @brief NFC transport implementation using ST RFAL library.
- *
+ * @class NfcTransportNxpNfcRdLib
+ * @brief NFC transport implementation using the NXP NFC Reader Library.
  */
 class NfcTransportNxpNfcRdLib {
 public:
@@ -66,12 +63,6 @@ public:
 	 */
 	AliroError Terminate();
 
-	/**
-	 * @brief Execute a single RFAL NFC worker iteration.
-	 *
-	 */
-	// void Execute();
-
 private:
 	NfcTransportNxpNfcRdLib() = default;
 	NfcTransportNxpNfcRdLib(const NfcTransportNxpNfcRdLib &) = delete;
@@ -79,26 +70,8 @@ private:
 	~NfcTransportNxpNfcRdLib() = default;
 	NfcTransportNxpNfcRdLib &operator=(const NfcTransportNxpNfcRdLib &) = delete;
 	NfcTransportNxpNfcRdLib &operator=(NfcTransportNxpNfcRdLib &&) = delete;
-#if 0
-	ReturnCode RfalNfcInit();
-	void RfalNotifyCallback(rfalNfcState state);
-	void CaptureRxData();
-	void SelectTag();
-	void RecoverPolling();
 
-	rfalNfcDiscoverParam mNfcConfig{};
-	k_thread mThread{};
-	bool mMultiSel{ false };
-
-	std::array<uint8_t, CONFIG_RFAL_FEATURE_ISO_DEP_APDU_MAX_LEN> mRxBuffer{};
-	uint8_t *mRxData{};
-	uint16_t *mRcvLen{};
-
-	bool mRecoverPolling{ false };
-	bool mSendInProgress{ false };
-	bool mTagDetectedState{ false };
-#endif
-    atomic_t mStarted{ false };
+	atomic_t mStarted{ false };
 };
 
 } // namespace Aliro

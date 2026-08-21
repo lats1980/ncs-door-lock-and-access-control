@@ -2,7 +2,7 @@
 
 #ifdef NXPBUILD__PHHAL_HW_PN5180
 
-#include "disc_loop_config.h"
+#include "nxp_nfc_discovery_config.h"
 
 #include <BoardSelection.h>
 #include <phhalHw_Pn5180_Instr.h>
@@ -13,7 +13,7 @@ LOG_MODULE_DECLARE(nfc_st_NxpNfcRdLib_impl, CONFIG_DOOR_LOCK_NXPNFCRDLIB_LOG_LEV
 
 phhalHw_Pn5180_DataParams_t *hal;
 
-phStatus_t disc_loop_configure_lpcd(void)
+phStatus_t nxp_nfc_configure_lpcd(void)
 {
 	phStatus_t status;
 	uint8_t lpcd_threshold_eeprom_addr = 0x37U;
@@ -36,7 +36,7 @@ phStatus_t disc_loop_configure_lpcd(void)
 	return status;
 }
 
-void disc_loop_irq_handler(void)
+void nxp_nfc_irq_handler(void)
 {
 	if (phDriver_PinRead(PHDRIVER_PIN_IRQ, PH_DRIVER_PINFUNC_INTERRUPT)) {
 		phDriver_PinClearIntStatus(PHDRIVER_PIN_IRQ);
