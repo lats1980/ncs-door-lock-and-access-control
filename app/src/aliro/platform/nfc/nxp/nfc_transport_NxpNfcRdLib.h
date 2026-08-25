@@ -12,6 +12,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 
+#include <array>
+#include <cstdint>
+
 namespace Aliro {
 
 /**
@@ -20,6 +23,8 @@ namespace Aliro {
  */
 class NfcTransportNxpNfcRdLib {
 public:
+	static constexpr size_t kIsodepApduMaxLen = 512;
+
 	/**
 	 * @brief Gets the singleton instance.
 	 * @return Reference to the singleton instance.
@@ -63,6 +68,28 @@ public:
 	 */
 	AliroError Terminate();
 
+	/**
+	 * @brief Configure ISO-DEP and create an Aliro session for a Type 4A tag.
+	 *
+	 * Called from the discovery thread when a Type 4A tag is activated.
+	 */
+	void OnType4AActivated(void *discLoopParams);
+
+	/** @return true while an ISO-DEP Aliro session is active. */
+	bool IsIsodepSessionActive() const;
+
+	/**
+	 * @brief Run ISO-DEP exchanges until the session ends.
+	 *
+	 * Must be called from the NFC discovery thread.
+	 */
+	void RunIsodepSession();
+
+	/**
+	 * @brief Tear down ISO-DEP and prepare for the next discovery cycle.
+	 */
+	void CleanupIsodepSession();
+
 private:
 	NfcTransportNxpNfcRdLib() = default;
 	NfcTransportNxpNfcRdLib(const NfcTransportNxpNfcRdLib &) = delete;
@@ -71,7 +98,20 @@ private:
 	NfcTransportNxpNfcRdLib &operator=(const NfcTransportNxpNfcRdLib &) = delete;
 	NfcTransportNxpNfcRdLib &operator=(NfcTransportNxpNfcRdLib &&) = delete;
 
-	atomic_t mStarted{ false };
+	void CaptureRxData(uint16_t currentDataLen);
+	void RequestSessionTermination();
+
+	std::array<uint8_t, kIsodepApduMaxLen> mRxBuffer{};
+	std::array<uint8_t, kIsodepApduMaxLen> mTxBuffer{};
+	uint16_t mTxLen{ 0 };
+
+	struct k_mutex mMutex{};
+	struct k_sem mTxSem{};
+
+	atomic_t mStarted{ false };            /* Discovery polling started via Start(). */
+	atomic_t mSessionActive{ false };      /* Type 4A ISO-DEP session active after activation. */
+	atomic_t mPendingSend{ false };        /* TX APDU queued, awaiting discovery-thread exchange. */
+	atomic_t mTerminateRequested{ false }; /* Stop() or Terminate() requested; ends session loop. */
 };
 
 } // namespace Aliro

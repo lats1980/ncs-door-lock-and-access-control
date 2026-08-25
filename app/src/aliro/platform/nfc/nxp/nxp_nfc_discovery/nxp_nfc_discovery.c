@@ -2,7 +2,10 @@
 #include <zephyr/logging/log.h>
 
 #include "nxp_nfc_discovery_platform.h"
+#include "nxp_nfc_isodep.h"
+#if defined(CONFIG_NFC_NXP_DEBUG_HELPERS)
 #include <nxp_nfc_debug.h>
+#endif
 
 LOG_MODULE_DECLARE(nfc_st_NxpNfcRdLib_impl, CONFIG_DOOR_LOCK_NXPNFCRDLIB_LOG_LEVEL);
 
@@ -40,12 +43,12 @@ static uint16_t nxp_nfc_discovery_handle_status(uint16_t entry_point, phStatus_t
 			return PHAC_DISCLOOP_ENTRY_POINT_POLL;
 		}
 
-		if (PHAC_DISCLOOP_CHECK_ANDMASK(tech_detected, PHAC_DISCLOOP_POS_BIT_MASK_A)) {
-			LOG_INF("Type A detected");
+		if (!PHAC_DISCLOOP_CHECK_ANDMASK(tech_detected, PHAC_DISCLOOP_POS_BIT_MASK_A)) {
+			LOG_INF("Non-Type A technology detected (0x%04x), ignoring", tech_detected);
+			return PHAC_DISCLOOP_ENTRY_POINT_POLL;
 		}
-		if (PHAC_DISCLOOP_CHECK_ANDMASK(tech_detected, PHAC_DISCLOOP_POS_BIT_MASK_B)) {
-			LOG_INF("Type B detected");
-		}
+
+		LOG_INF("Type A detected");
 
 		for (tech_idx = 0; tech_idx < PHAC_DISCLOOP_PASS_POLL_MAX_TECHS_SUPPORTED;
 		     tech_idx++) {
@@ -61,9 +64,9 @@ static uint16_t nxp_nfc_discovery_handle_status(uint16_t entry_point, phStatus_t
 				break;
 			}
 		}
-
+#if defined(CONFIG_NFC_NXP_DEBUG_HELPERS)
 		nxp_nfc_debug_print_tech((1 << tech_idx));
-
+#endif
 		status = phacDiscLoop_SetConfig(s_disc_loop_params, PHAC_DISCLOOP_CONFIG_NEXT_POLL_STATE,
 						PHAC_DISCLOOP_POLL_STATE_COLLISION_RESOLUTION);
 		if (status != PH_ERR_SUCCESS) {
@@ -93,7 +96,9 @@ static uint16_t nxp_nfc_discovery_handle_status(uint16_t entry_point, phStatus_t
 		}
 
 		LOG_INF("Multiple cards resolved: %d cards", num_tags);
+#if defined(CONFIG_NFC_NXP_DEBUG_HELPERS)
 		nxp_nfc_debug_print_tag_info(s_disc_loop_params, num_tags, tech_detected);
+#endif
 
 		if (num_tags > 1) {
 			for (tech_idx = 0; tech_idx < PHAC_DISCLOOP_PASS_POLL_MAX_TECHS_SUPPORTED;
@@ -114,11 +119,15 @@ static uint16_t nxp_nfc_discovery_handle_status(uint16_t entry_point, phStatus_t
 						status);
 					return PHAC_DISCLOOP_ENTRY_POINT_POLL;
 				}
-
+#if defined(CONFIG_NFC_NXP_DEBUG_HELPERS)
 				nxp_nfc_debug_print_tag_info(s_disc_loop_params, 0x01, tech_detected);
+#endif
+				nxp_nfc_isodep_on_activated(s_disc_loop_params);
 			} else {
 				LOG_ERR("Card activation failed");
 			}
+		} else {
+			nxp_nfc_isodep_on_activated(s_disc_loop_params);
 		}
 	} else if ((discovery_status & PH_ERR_MASK) == PHAC_DISCLOOP_DEVICE_ACTIVATED) {
 		LOG_INF("Card detected and activated successfully");
@@ -137,8 +146,10 @@ static uint16_t nxp_nfc_discovery_handle_status(uint16_t entry_point, phStatus_t
 				status);
 			return PHAC_DISCLOOP_ENTRY_POINT_POLL;
 		}
-
+#if defined(CONFIG_NFC_NXP_DEBUG_HELPERS)
 		nxp_nfc_debug_print_tag_info(s_disc_loop_params, num_tags, tech_detected);
+#endif
+		nxp_nfc_isodep_on_activated(s_disc_loop_params);
 	} else if ((discovery_status & PH_ERR_MASK) != PHAC_DISCLOOP_NO_TECH_DETECTED &&
 		   (discovery_status & PH_ERR_MASK) != PHAC_DISCLOOP_NO_DEVICE_RESOLVED &&
 		   (discovery_status & PH_ERR_MASK) != PHAC_DISCLOOP_LPCD_NO_TECH_DETECTED) {
@@ -151,9 +162,13 @@ static uint16_t nxp_nfc_discovery_handle_status(uint16_t entry_point, phStatus_t
 					status);
 				return PHAC_DISCLOOP_ENTRY_POINT_POLL;
 			}
+#if defined(CONFIG_NFC_NXP_DEBUG_HELPERS)
 			nxp_nfc_debug_print_error_info(error_info);
+#endif
 		} else {
+#if defined(CONFIG_NFC_NXP_DEBUG_HELPERS)
 			nxp_nfc_debug_print_error_info(discovery_status);
+#endif
 		}
 	}
 
@@ -229,6 +244,37 @@ static phStatus_t nxp_nfc_discovery_configure(phacDiscLoop_Sw_DataParams_t *disc
 	}
 
 	return status;
+}
+
+/**
+ * Restore poll configuration and apply NFC Forum field-off guard time
+ * before the next discovery iteration.
+ */
+static phStatus_t nxp_nfc_discovery_finish_poll_cycle(void)
+{
+	phStatus_t status;
+
+	status = phacDiscLoop_SetConfig(s_disc_loop_params, PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG,
+					saved_poll_tech_cfg);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG failed: 0x%04x",
+			status);
+		return status;
+	}
+
+	status = phhalHw_FieldOff(hal);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phhalHw_FieldOff failed: 0x%04x", status);
+		return status;
+	}
+
+	status = phhalHw_Wait(hal, PHHAL_HW_TIME_MICROSECONDS, 5100);
+	if (status != PH_ERR_SUCCESS) {
+		LOG_ERR("phhalHw_Wait failed: 0x%04x", status);
+		return status;
+	}
+
+	return PH_ERR_SUCCESS;
 }
 
 static void nxp_nfc_discovery_worker(void *p1, void *p2, void *p3);
@@ -343,27 +389,20 @@ static void nxp_nfc_discovery_worker(void *p1, void *p2, void *p3)
 		}
 #endif /* CONFIG_NCS_NXP_DISCOVERY_LOOP_LPCD */
 
+		/* Run the discovery loop to detect NFC tags */
 		status = phacDiscLoop_Run(s_disc_loop_params, entry_point);
 
 		entry_point = nxp_nfc_discovery_handle_status(entry_point, status);
 
-		tmp_status = phacDiscLoop_SetConfig(s_disc_loop_params, PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG,
-						    saved_poll_tech_cfg);
-		if (tmp_status != PH_ERR_SUCCESS) {
-			LOG_ERR("phacDiscLoop_SetConfig PHAC_DISCLOOP_CONFIG_PAS_POLL_TECH_CFG failed: 0x%04x",
-				tmp_status);
-			return;
+		if (nxp_nfc_isodep_session_active()) {
+			nxp_nfc_isodep_run_session(s_disc_loop_params);
+			nxp_nfc_isodep_cleanup(s_disc_loop_params);
+		} else {
+			/* No Type 4A ISO-DEP session; proceed to standard poll cycle cleanup. */
 		}
 
-		tmp_status = phhalHw_FieldOff(hal);
+		tmp_status = nxp_nfc_discovery_finish_poll_cycle();
 		if (tmp_status != PH_ERR_SUCCESS) {
-			LOG_ERR("phhalHw_FieldOff failed: 0x%04x", tmp_status);
-			return;
-		}
-
-		tmp_status = phhalHw_Wait(hal, PHHAL_HW_TIME_MICROSECONDS, 5100);
-		if (tmp_status != PH_ERR_SUCCESS) {
-			LOG_ERR("phhalHw_Wait failed: 0x%04x", tmp_status);
 			return;
 		}
 	}
