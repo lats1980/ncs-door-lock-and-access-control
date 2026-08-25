@@ -5,7 +5,7 @@
 #
 
 config NFC_DRIVER_STM
-	default n
+	default y
 
 config RFAL_FEATURE_NFCA
 	default y
