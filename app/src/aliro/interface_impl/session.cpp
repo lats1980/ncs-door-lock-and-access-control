@@ -7,7 +7,13 @@
 #include "aliro/interface.h"
 
 #include "aliro/access_manager/access_manager.h"
-#include "aliro/platform/nfc/nfc_transport_rfal.h"
+#ifdef CONFIG_NFC_DRIVER_STM
+#include "aliro/platform/nfc/stm/nfc_transport_rfal.h"
+#elif defined(CONFIG_NFC_DRIVER_NXP)
+#include "aliro/platform/nfc/nxp/nfc_transport_NxpNfcRdLib.h"
+#else
+#error "NFC HAL driver not selected (NFC_DRIVER_STM or NFC_DRIVER_NXP)."
+#endif
 
 #ifdef CONFIG_NCS_ALIRO_BLE_UWB
 #include "aliro/platform/ble/ble_manager.h"
@@ -18,7 +24,13 @@ namespace Aliro::Interface::Session {
 AliroError Send(ConnectionHandle handle, Data data)
 {
 	if (handle.IsNfc()) {
+#ifdef CONFIG_NFC_DRIVER_STM		
 		return NfcTransportRfal::Instance().Send(data);
+#elif defined(CONFIG_NFC_DRIVER_NXP)
+	    return NfcTransportNxpNfcRdLib::Instance().Send(data);
+#else
+        #error "NFC HAL driver not selected (NFC_DRIVER_STM or NFC_DRIVER_NXP)."
+#endif
 	}
 #ifdef CONFIG_NCS_ALIRO_BLE_UWB
 	else if (handle.IsBle()) {
@@ -32,7 +44,13 @@ AliroError Send(ConnectionHandle handle, Data data)
 void HandleTermination(ConnectionHandle handle)
 {
 	if (handle.IsNfc()) {
+#ifdef CONFIG_NFC_DRIVER_STM		
 		NfcTransportRfal::Instance().Terminate();
+#elif defined(CONFIG_NFC_DRIVER_NXP)
+	    NfcTransportNxpNfcRdLib::Instance().Terminate();
+#else
+        #error "NFC HAL driver not selected (NFC_DRIVER_STM or NFC_DRIVER_NXP)."
+#endif
 	}
 #ifdef CONFIG_NCS_ALIRO_BLE_UWB
 	else if (handle.IsBle()) {

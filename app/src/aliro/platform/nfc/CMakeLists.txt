@@ -4,7 +4,5 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
-zephyr_include_directories(.)
-
-# Core RFAL transport implementation
-zephyr_library_sources(nfc_transport_rfal.cpp)
+add_subdirectory_ifdef(CONFIG_NFC_DRIVER_STM stm)
+add_subdirectory_ifdef(CONFIG_NFC_DRIVER_NXP nxp)

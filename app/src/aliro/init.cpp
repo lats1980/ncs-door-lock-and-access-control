@@ -9,7 +9,13 @@
 #include "aliro/types.h"
 #include "aliro/utils.h"
 #include "crypto/utils.h"
-#include "nfc/nfc_transport_rfal.h"
+#ifdef CONFIG_NFC_DRIVER_STM
+#include "nfc/stm/nfc_transport_rfal.h"
+#elif defined(CONFIG_NFC_DRIVER_NXP)
+#include "nfc/nxp/nfc_transport_NxpNfcRdLib.h"
+#else
+#error "NFC HAL driver not selected (NFC_DRIVER_STM or NFC_DRIVER_NXP)."
+#endif
 #include "reader.h"
 
 #ifdef CONFIG_BT
@@ -268,7 +274,14 @@ int AliroInit()
 	ec = AliroStack::Instance().Init();
 	VerifyOrReturnValue(ec == ALIRO_NO_ERROR, EXIT_FAILURE, LOG_ERR("Aliro stack initialization failed"));
 
+#ifdef CONFIG_NFC_DRIVER_STM
 	ec = Aliro::NfcTransportRfal::Instance().Init();
+#elif defined(CONFIG_NFC_DRIVER_NXP)
+	ec = Aliro::NfcTransportNxpNfcRdLib::Instance().Init();
+#else
+    #error "NFC HAL driver not selected (NFC_DRIVER_STM or NFC_DRIVER_NXP)."
+#endif
+	
 	if (ec != ALIRO_NO_ERROR) {
 		LOG_ERR("NFC transport initialization failed");
 	}
@@ -368,7 +381,14 @@ int AliroInit()
 
 int AliroStart()
 {
+#ifdef CONFIG_NFC_DRIVER_STM
 	AliroError ec = NfcTransportRfal::Instance().Start();
+#elif defined(CONFIG_NFC_DRIVER_NXP)
+	AliroError ec = NfcTransportNxpNfcRdLib::Instance().Start();
+#else
+    #error "NFC HAL driver not selected (NFC_DRIVER_STM or NFC_DRIVER_NXP)."
+#endif
+
 	if (ec != ALIRO_NO_ERROR) {
 		LOG_ERR("NFC transport start failed");
 		return EXIT_FAILURE;
@@ -398,7 +418,14 @@ int AliroStop()
 {
 	int rc = EXIT_SUCCESS;
 
+#ifdef CONFIG_NFC_DRIVER_STM
 	AliroError ec = NfcTransportRfal::Instance().Stop();
+#elif defined(CONFIG_NFC_DRIVER_NXP)
+	AliroError ec = NfcTransportNxpNfcRdLib::Instance().Stop();
+#else
+    #error "NFC HAL driver not selected (NFC_DRIVER_STM or NFC_DRIVER_NXP)."
+#endif
+	
 	if (ec != ALIRO_NO_ERROR) {
 		LOG_ERR("NFC transport stop failed");
 	}

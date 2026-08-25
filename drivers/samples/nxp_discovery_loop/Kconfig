@@ -1,0 +1,33 @@
+#
+# Copyright (c) 2025 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menu "Zephyr"
+source "Kconfig.zephyr"
+endmenu
+
+module = NCS_NXP_DISCOVERY_LOOP_SAMPLE
+module-str = NCS_NXP_DISCOVERY_LOOP_SAMPLE
+module-dep = LOG
+module-help = Enables application log messages.
+source "$(ZEPHYR_BASE)/subsys/logging/Kconfig.template.log_config"
+
+menu "NXP discovery loop sample"
+
+config NCS_NXP_DISCOVERY_LOOP_DISC_CONFIG
+	bool "Configure discovery loop profile settings"
+	default y
+	help
+	  Apply sample discovery loop profile configuration via
+	  disc_loop_apply_profile() instead of using Reader Library defaults.
+
+config NCS_NXP_DISCOVERY_LOOP_LPCD
+	bool "Low power card detection (LPCD)"
+	default y
+	help
+	  Configure and enable LPCD in the discovery loop to reduce power
+	  consumption while waiting for a tag.
+
+endmenu

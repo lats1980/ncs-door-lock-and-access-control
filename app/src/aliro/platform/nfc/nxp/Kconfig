@@ -1,0 +1,28 @@
+#
+# Copyright (c) 2025 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+rsource "Kconfig.NxpNfcRdLib.defconfig"
+
+if NFC_DRIVER_NXP
+
+menu "NFC"
+
+config NCS_NXP_DISCOVERY_LOOP_LPCD
+	bool "Low power card detection (LPCD)"
+	default y
+	help
+	  Configure and enable LPCD in the discovery loop to reduce power
+	  consumption while waiting for a tag.
+
+module = DOOR_LOCK_NXPNFCRDLIB
+module-str = DOOR_LOCK_NXPNFCRDLIB
+module-dep = LOG
+module-help = Enables Door Lock NFC NxpNfcRdLib log messages.
+source "$(ZEPHYR_BASE)/subsys/logging/Kconfig.template.log_config"
+
+endmenu # NFC
+
+endif # NFC_DRIVER_NXP

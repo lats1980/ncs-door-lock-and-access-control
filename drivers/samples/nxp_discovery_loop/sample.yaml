@@ -1,0 +1,11 @@
+sample:
+  description: NXP discovery loop sample application
+  name: ncs-nxp-discovery-loop-sample
+common:
+  sysbuild: true
+  build_only: true
+  platform_allow: &platforms
+    - nrf54l15dk/nrf54l15/cpuapp
+  integration_platforms: *platforms
+tests:
+  app.nxp_discovery_loop: {}
