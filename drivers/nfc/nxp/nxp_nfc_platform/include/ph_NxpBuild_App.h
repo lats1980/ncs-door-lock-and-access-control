@@ -89,7 +89,9 @@
 
     #ifdef  NXPBUILD__PHPAL_I14443P3A_SW
         #define NXPBUILD__PHAC_DISCLOOP_TYPEA_I3P3_TAGS     /**< SRC/DATA to Detect/CollRes/Activate cards such as MFC, MFUL, MFP SL1 etc is included. */
+#ifdef NXPBUILD__PHAL_T1T_SW
         #define NXPBUILD__PHAC_DISCLOOP_TYPEA_JEWEL_TAGS    /**< SRC/DATA to Detect cards such as NFC Forum T1T, Topaz/Jewel is included. */
+#endif /* NXPBUILD__PHAL_T1T_SW */
 
         #if defined(NXPBUILD__PHPAL_I14443P4A_SW) && \
             defined(NXPBUILD__PHPAL_I14443P4_SW)
@@ -181,20 +183,12 @@
 
 /*#define NXPBUILD__PH_CIDMANAGER_SW*/                          /**< CID Manager SW Component is included. */
 
-    #define NXPBUILD__PH_KEYSTORE_SW                            /**< SW KeyStore Component is included. */
-
-    #define NXPBUILD__PH_CRYPTOSYM_SW                          /**< Symmetric Crypto Symbols Software Component is included. */
-    #ifndef NXPBUILD__PH_CRYPTOSYM_SW
-        #define NXPBUILD__PH_CRYPTOSYM_MBEDTLS                 /**< Symmetric Crypto Symbols mBedTLS Component is included. */
-    #endif /* NXPBUILD__PH_CRYPTOSYM_SW */
-
-#ifdef NXPBUILD__PH_CRYPTOSYM_SW
-    #define NXPBUILD__PH_CRYPTORNG_SW                           /**< Crypto RNG SW Component is included. */
-#endif /* NXPBUILD__PH_CRYPTOSYM_SW */
-
-#ifdef NXPBUILD__PH_CRYPTOSYM_MBEDTLS
-    #define NXPBUILD__PH_CRYPTORNG_MBEDTLS                      /**< Crypto RNG mBedTLS Component is included. */
-#endif /* NXPBUILD__PH_CRYPTOSYM_MBEDTLS */
+/* KeyStore, CryptoSym and CryptoRng are controlled via Kconfig
+ * (CONFIG_NFC_NXP_KEYSTORE / CONFIG_NFC_NXP_CRYPTOSYM /
+ * CONFIG_NFC_NXP_CRYPTORNG) and defined by CMake as
+ * NXPBUILD__PH_KEYSTORE_SW, NXPBUILD__PH_CRYPTOSYM_SW, and
+ * NXPBUILD__PH_CRYPTORNG_SW.
+ */
 
 #define NXPBUILD__PH_TMIUTILS                                   /**< TMIUtils component */
 
@@ -279,9 +273,13 @@
 
 #endif /* NXPBUILD__PHPAL_SLI15693_SW */
 
-#define NXPBUILD__PHAL_T1T_SW                                   /**< AL T1 Tag SW Component is included */
+/* AL T1T and Tag Operations (Top) are controlled via Kconfig
+ * (CONFIG_NFC_NXP_AL_T1T / CONFIG_NFC_NXP_AL_TOP) and defined by CMake as
+ * NXPBUILD__PHAL_T1T_SW and NXPBUILD__PHAL_TOP_SW.
+ */
 
-#ifdef NXPBUILD__PHAL_T1T_SW
+#ifdef NXPBUILD__PHAL_TOP_SW
+#if defined(NXPBUILD__PHAL_T1T_SW)
     #define NXPBUILD__PHAL_TOP_T1T_SW                           /**< AL TOP T1T Tag SW Component is included */
 #endif /* NXPBUILD__PHAL_T1T_SW */
 #ifdef NXPBUILD__PHAL_MFUL_SW
@@ -295,19 +293,11 @@
 #endif /* NXPBUILD__PHPAL_MIFARE_SW */
 #ifdef NXPBUILD__PHAL_ICODE_SW
     #define NXPBUILD__PHAL_TOP_T5T_SW                           /**< AL TOP T5T Tag SW Component is included */
-#endif /* NXPBUILD__PHAL_ICODE_SW*/
+#endif /* NXPBUILD__PHAL_ICODE_SW */
 #ifdef NXPBUILD__PHPAL_I14443P3A_SW
     #define NXPBUILD__PHAL_TOP_MFC_SW                           /**< AL TOP MFC Tag SW Component is included */
 #endif /* NXPBUILD__PHPAL_I14443P3A_SW */
-
-#if defined(NXPBUILD__PHAL_TOP_T1T_SW) || \
-    defined(NXPBUILD__PHAL_TOP_T2T_SW) || \
-    defined(NXPBUILD__PHAL_TOP_T3T_SW) || \
-    defined(NXPBUILD__PHAL_TOP_T4T_SW) || \
-    defined(NXPBUILD__PHAL_TOP_T5T_SW) || \
-    defined(NXPBUILD__PHAL_TOP_MFC_SW)
-    #define NXPBUILD__PHAL_TOP_SW                               /**< AL for TagOps Mapping SW Component is included.Required for NDEF operations */
-#endif
+#endif /* NXPBUILD__PHAL_TOP_SW */
 
 #ifdef NXPBUILD__PHPAL_I18000P3M3_SW
     #define NXPBUILD__PHAL_I18000P3M3_SW                        /**< AL ISO18000p3m3 SW Component is included */
@@ -321,13 +311,9 @@
     #endif
 #endif /* NXPBUILD__PHPAL_I14443P4MC_SW */
 
-/* LLCP Components */
-#if defined(NXPBUILD__PHPAL_I18092MPI_SW) || \
-    defined(NXPBUILD__PHPAL_I18092MT_SW)
-    #if !defined(PH_OSAL_NULLOS)
-        #define NXPBUILD__PHLN_LLCP_SW                          /**< Link LLCP SW Component is included */
-    #endif
-#endif
+/* LLCP is controlled via Kconfig (CONFIG_NFC_NXP_LLCP) and defined by CMake as
+ * NXPBUILD__PHLN_LLCP_SW.
+ */
 
 /* SNEP components */
 #ifdef NXPBUILD__PHLN_LLCP_SW

@@ -101,6 +101,56 @@ config NFC_NXP_PAL_I18092MT
 	  Include the NXP Reader Library PAL ISO 18092 target mode (P2P)
 	  software component. Corresponds to NXPBUILD__PHPAL_I18092MT_SW.
 
+config NFC_NXP_AL_T1T
+	bool "AL Type 1 Tag (T1T / Topaz)"
+	default n
+	help
+	  Include the NXP Reader Library AL Type 1 Tag software component.
+	  Corresponds to NXPBUILD__PHAL_T1T_SW.
+
+config NFC_NXP_AL_TOP
+	bool "AL Tag Operations (phalTop / NDEF)"
+	default n
+	help
+	  Include the NXP Reader Library Tag Operations (Top) software
+	  component for NDEF read/write across tag types. Corresponds to
+	  NXPBUILD__PHAL_TOP_SW.
+
+config NFC_NXP_KEYSTORE
+	bool "KeyStore component (phKeyStore)"
+	default y if NFC_NXP_PAL_MIFARE
+	default n
+	help
+	  Include the NXP Reader Library KeyStore software component.
+	  Required for MIFARE secure authentication. Corresponds to
+	  NXPBUILD__PH_KEYSTORE_SW.
+
+config NFC_NXP_CRYPTOSYM
+	bool "Symmetric crypto component (phCryptoSym)"
+	default y if NFC_NXP_PAL_MIFARE
+	default n
+	depends on NFC_NXP_KEYSTORE
+	help
+	  Include the NXP Reader Library symmetric crypto software
+	  component. Corresponds to NXPBUILD__PH_CRYPTOSYM_SW.
+
+config NFC_NXP_CRYPTORNG
+	bool "Crypto RNG component (phCryptoRng)"
+	default y if NFC_NXP_CRYPTOSYM
+	default n
+	depends on NFC_NXP_CRYPTOSYM
+	help
+	  Include the NXP Reader Library crypto RNG software component.
+	  Corresponds to NXPBUILD__PH_CRYPTORNG_SW.
+
+config NFC_NXP_LLCP
+	bool "LLCP link layer (phlnLlcp)"
+	default y if NFC_NXP_PAL_I18092MPI || NFC_NXP_PAL_I18092MT
+	default n
+	help
+	  Include the NXP Reader Library LLCP software component for
+	  NFC-DEP P2P. Corresponds to NXPBUILD__PHLN_LLCP_SW.
+
 config NFC_NXP_NFCLIB_EMVCO
 	bool "NFC Library EMVCo profile"
 	help

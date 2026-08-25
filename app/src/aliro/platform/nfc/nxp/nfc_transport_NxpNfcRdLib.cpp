@@ -27,7 +27,7 @@ extern "C" {
 
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(nfc_st_NxpNfcRdLib_impl, CONFIG_DOOR_LOCK_NXPNFCRDLIB_LOG_LEVEL);
+LOG_MODULE_REGISTER(nfc_nxp_NxpNfcRdLib_impl, CONFIG_DOOR_LOCK_NXPNFCRDLIB_LOG_LEVEL);
 
 namespace {
 

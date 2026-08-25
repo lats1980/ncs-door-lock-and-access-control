@@ -7,7 +7,7 @@
 #include <nxp_nfc_debug.h>
 #endif
 
-LOG_MODULE_DECLARE(nfc_st_NxpNfcRdLib_impl, CONFIG_DOOR_LOCK_NXPNFCRDLIB_LOG_LEVEL);
+LOG_MODULE_DECLARE(nfc_nxp_NxpNfcRdLib_impl, CONFIG_DOOR_LOCK_NXPNFCRDLIB_LOG_LEVEL);
 
 phacDiscLoop_Sw_DataParams_t *s_disc_loop_params;
 

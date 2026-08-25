@@ -77,6 +77,30 @@ if(CONFIG_NFC_NXP_NFCLIB_EMVCO)
 	zephyr_compile_definitions(NXPBUILD__PH_NFCLIB_EMVCO)
 endif()
 
+if(CONFIG_NFC_NXP_AL_T1T)
+	zephyr_compile_definitions(NXPBUILD__PHAL_T1T_SW)
+endif()
+
+if(CONFIG_NFC_NXP_AL_TOP)
+	zephyr_compile_definitions(NXPBUILD__PHAL_TOP_SW)
+endif()
+
+if(CONFIG_NFC_NXP_KEYSTORE)
+	zephyr_compile_definitions(NXPBUILD__PH_KEYSTORE_SW)
+endif()
+
+if(CONFIG_NFC_NXP_CRYPTOSYM)
+	zephyr_compile_definitions(NXPBUILD__PH_CRYPTOSYM_SW)
+endif()
+
+if(CONFIG_NFC_NXP_CRYPTORNG)
+	zephyr_compile_definitions(NXPBUILD__PH_CRYPTORNG_SW)
+endif()
+
+if(CONFIG_NFC_NXP_LLCP)
+	zephyr_compile_definitions(NXPBUILD__PHLN_LLCP_SW)
+endif()
+
 # nxp_nfc_platform/include must precede NXP RTOS/phOsal/inc so phOsal.h wrapper
 # and phOsal_Config.h shadow the NXP Confidential headers.
 zephyr_include_directories(
@@ -97,19 +121,41 @@ file(GLOB nxp_nfc_rdlib_sources CONFIGURE_DEPENDS
 	${CMAKE_CURRENT_LIST_DIR}/nxp_nfc_platform/*.c
 	${NXP_PHHALHW_SRC_DIR}/*.c
 	${NXP_NFC_COMPS_DIR}/phNfcLib/src/*.c
-	${NXP_NFC_COMPS_DIR}/phKeyStore/src/Sw/*.c
-	${NXP_NFC_COMPS_DIR}/phKeyStore/src/*.c
-	${NXP_NFC_COMPS_DIR}/phCryptoSym/src/*.c
-	${NXP_NFC_COMPS_DIR}/phCryptoSym/src/Sw/*.c
-	${NXP_NFC_COMPS_DIR}/phCryptoRng/src/*.c
-	${NXP_NFC_COMPS_DIR}/phCryptoRng/src/Sw/*.c
 	${NXP_NFC_COMPS_DIR}/phTools/src/*.c
-	${NXP_NFC_COMPS_DIR}/phalT1T/src/Sw/*.c
-	${NXP_NFC_COMPS_DIR}/phalTop/src/Sw/*.c
 	${NXP_NFC_COMPS_DIR}/phacDiscLoop/src/*.c
 	${NXP_NFC_COMPS_DIR}/phacDiscLoop/src/Sw/*.c
-	${NXP_NFC_COMPS_DIR}/phlnLlcp/src/Sw/*.c
 )
+
+if(CONFIG_NFC_NXP_KEYSTORE)
+	file(GLOB nxp_keystore_sources CONFIGURE_DEPENDS
+		${NXP_NFC_COMPS_DIR}/phKeyStore/src/Sw/*.c
+		${NXP_NFC_COMPS_DIR}/phKeyStore/src/*.c
+	)
+	list(APPEND nxp_nfc_rdlib_sources ${nxp_keystore_sources})
+endif()
+
+if(CONFIG_NFC_NXP_CRYPTOSYM)
+	file(GLOB nxp_cryptosym_sources CONFIGURE_DEPENDS
+		${NXP_NFC_COMPS_DIR}/phCryptoSym/src/*.c
+		${NXP_NFC_COMPS_DIR}/phCryptoSym/src/Sw/*.c
+	)
+	list(APPEND nxp_nfc_rdlib_sources ${nxp_cryptosym_sources})
+endif()
+
+if(CONFIG_NFC_NXP_CRYPTORNG)
+	file(GLOB nxp_cryptorng_sources CONFIGURE_DEPENDS
+		${NXP_NFC_COMPS_DIR}/phCryptoRng/src/*.c
+		${NXP_NFC_COMPS_DIR}/phCryptoRng/src/Sw/*.c
+	)
+	list(APPEND nxp_nfc_rdlib_sources ${nxp_cryptorng_sources})
+endif()
+
+if(CONFIG_NFC_NXP_LLCP)
+	file(GLOB nxp_llcp_sources CONFIGURE_DEPENDS
+		${NXP_NFC_COMPS_DIR}/phlnLlcp/src/Sw/*.c
+	)
+	list(APPEND nxp_nfc_rdlib_sources ${nxp_llcp_sources})
+endif()
 
 if(CONFIG_NFC_NXP_PAL_I14443P3A)
 	file(GLOB nxp_pal_i14443p3a_sources CONFIGURE_DEPENDS
@@ -204,6 +250,20 @@ if(CONFIG_NFC_NXP_PAL_I18092MT)
 		${NXP_NFC_COMPS_DIR}/phpalI18092mT/src/Sw/*.c
 	)
 	list(APPEND nxp_nfc_rdlib_sources ${nxp_pal_i18092mt_sources})
+endif()
+
+if(CONFIG_NFC_NXP_AL_T1T)
+	file(GLOB nxp_al_t1t_sources CONFIGURE_DEPENDS
+		${NXP_NFC_COMPS_DIR}/phalT1T/src/Sw/*.c
+	)
+	list(APPEND nxp_nfc_rdlib_sources ${nxp_al_t1t_sources})
+endif()
+
+if(CONFIG_NFC_NXP_AL_TOP)
+	file(GLOB nxp_al_top_sources CONFIGURE_DEPENDS
+		${NXP_NFC_COMPS_DIR}/phalTop/src/Sw/*.c
+	)
+	list(APPEND nxp_nfc_rdlib_sources ${nxp_al_top_sources})
 endif()
 
 if(CONFIG_NFC_NXP_DEBUG_HELPERS)
