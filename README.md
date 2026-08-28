@@ -84,6 +84,35 @@ west build -p -b nrf54l15dk/nrf54l15/cpuapp -d build_at_host/ -- \
   -DFILE_SUFFIX=at_host
 ```
 
+### Low-power (release) configuration
+
+For reduced power consumption, build with `prj_release.conf` instead of the default `prj.conf`. This enables release-oriented settings such as:
+
+- Aliro stack release library (`CONFIG_NCS_ALIRO_RELEASE=y`) with logs disabled
+- Power management (`CONFIG_PM_DEVICE`, `CONFIG_PM_DEVICE_RUNTIME`, `CONFIG_RAM_POWER_DOWN_LIBRARY`)
+- Disabled logging, shell, and UART console
+
+Add `-DCONF_FILE=prj_release.conf` to any of the build commands above. Example for AT Module over serial:
+
+```shell
+west build -p -b nrf54l15dk/nrf54l15/cpuapp -d build_at_module_release/ -- \
+  -DCONF_FILE=prj_release.conf \
+  -DEXTRA_CONF_FILE=overlay-aliro_at_module.conf \
+  -DEXTRA_DTC_OVERLAY_FILE=overlay-at_uart.overlay \
+  -DFILE_SUFFIX=at_module
+```
+
+For AT Host over serial, combine with the Matter snippet:
+
+```shell
+west build -p -b nrf54l15dk/nrf54l15/cpuapp -d build_at_host_release/ -- \
+  -DCONF_FILE=prj_release.conf \
+  -DEXTRA_CONF_FILE=overlay-aliro_at_host.conf \
+  -DEXTRA_DTC_OVERLAY_FILE=overlay-at_uart.overlay \
+  -DFILE_SUFFIX=at_host \
+  -DSNIPPET="matter"
+```
+
 ## NXP PN5190 NFC reader (AT Module)
 
 The **AT Module** build uses the NXP **PN5190** as the default NFC reader frontend (instead of the STM RFAL-based reader). This is selected in `overlay-aliro_at_module.conf` (`CONFIG_NFC_DRIVER_NXP=y`, `CONFIG_NFC_DRIVER_STM=n`) and wired through the board overlay `boards/nrf54l15dk_nrf54l15_cpuapp_at_module.overlay` (applied when building with `-DFILE_SUFFIX=at_module`).
