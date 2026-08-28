@@ -14,5 +14,7 @@ elseif(CONFIG_SOC_NRF54LM20A)
   set(SOC_NAME "nrf54lm20a")
 endif()
 
-add_subdirectory_ifdef(CONFIG_NCS_ALIRO aliro)
+if(CONFIG_NCS_ALIRO OR CONFIG_ALIRO_ON_EXTERNAL_MCU)
+  add_subdirectory(aliro)
+endif()
 add_subdirectory_ifdef(CONFIG_QM35_UWB_LIB qm35_uwb)

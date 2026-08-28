@@ -1,0 +1,60 @@
+/*
+ * Copyright (c) 2025 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+ */
+
+/ {
+	/* Disable buttons to avoid collision with interrupt and SCK pins for NFC tag reader.
+	It also allows to use the button with the same label (1) on all supported dev kits. */
+	buttons {
+		/delete-node/ button_0;
+		/delete-node/ button_3;
+	};
+
+	leds {
+		/delete-node/ led_0;
+	};
+
+	aliases {
+		/delete-property/ sw0;
+		/delete-property/ sw3;
+		/delete-property/ led0;
+		/delete-property/ mcuboot-led0;
+		mcuboot-button0 = &button1;
+		lock-sim-indicator = &led2; /* green LED2 on nRF54L15DK */
+	};
+
+	chosen {
+		nordic,pm-ext-flash = &mx25r64;
+	};
+};
+
+&spi21 {
+	status = "disabled";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+/* restore full RRAM and SRAM space - by default some parts are dedicated to FLRP */
+&cpuapp_rram {
+	reg = <0x0 DT_SIZE_K(1524)>;
+};
+
+&mx25r64 {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};

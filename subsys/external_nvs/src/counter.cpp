@@ -12,6 +12,7 @@
 #include <psa/protected_storage.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
+#include <cstdio>
 
 LOG_MODULE_DECLARE(external_nvs, CONFIG_DOOR_LOCK_EXTERNAL_NVS_LOG_LEVEL);
 

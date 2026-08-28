@@ -12,6 +12,7 @@
 #include <psa/protected_storage.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
+#include <cstdio>
 
 LOG_MODULE_DECLARE(internal_zms, CONFIG_DOOR_LOCK_INTERNAL_ZMS_LOG_LEVEL);
 

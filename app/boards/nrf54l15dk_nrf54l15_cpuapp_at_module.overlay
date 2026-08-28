@@ -24,12 +24,6 @@
 		mcuboot-button0 = &button1;
 		lock-sim-indicator = &led2; /* green LED2 on nRF54L15DK */
 	};
-
-	nfc_power_switch: nfc_power_switch {
-		status = "okay";
-		compatible = "nfc-power-control";
-		gpios = <&gpio2 6 ( GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN )>;
-	};
 };
 
 &pinctrl {
@@ -38,6 +32,7 @@
 			psels = <NRF_PSEL(SPIM_SCK, 1, 13)>,
 			        <NRF_PSEL(SPIM_MOSI, 1, 11)>,
 			        <NRF_PSEL(SPIM_MISO, 1, 12)>;
+			nordic,drive-mode = <NRF_DRIVE_H0H1>;
 		};
 	};
 
@@ -59,11 +54,12 @@
 	pinctrl-0 = <&spi21_default>;
 	pinctrl-1 = <&spi21_sleep>;
 	pinctrl-names = "default", "sleep";
-	nucleo_nfc@0 {
-		compatible = "x-nucleo-nfc";
+	pn5190@0 {
+		compatible = "nxp,pn5190";
 		reg = <0>;
 		spi-max-frequency = <DT_FREQ_M(8)>;
 		irq-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 6 (GPIO_ACTIVE_LOW|GPIO_PULL_UP)>;
 	};
 };
 
