@@ -1,0 +1,46 @@
+/*
+ * Copyright (c) 2026 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+ */
+
+#include <door_lock/common/nrf54l15_cpuapp_partitions.dtsi>
+
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &factory_data_partition;
+
+/*
+ * Keep in sync with boards/nrf54l15dk_nrf54l15_cpuapp_internal.overlay of the application.
+ */
+&cpuapp_rram {
+	partitions {
+		slot0_partition: partition@d000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x0000d000 DT_SIZE_K(652)>;
+		};
+
+		slot1_partition: partition@b0000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-1";
+			reg = <0x000b0000 DT_SIZE_K(652)>;
+		};
+
+		internal_zms_partition: partition@153000 {
+			compatible = "zephyr,mapped-partition";
+			label = "internal-zms";
+			reg = <0x00153000 DT_SIZE_K(128)>;
+		};
+	};
+};
+
+/ {
+	chosen {
+		zephyr,code-partition = &boot_partition;
+	};
+};
+
+&mx25r64 {
+	status = "disabled";
+};
