@@ -40,10 +40,13 @@
 #include "credential_issuer_keys.h"
 #endif // CONFIG_DOOR_LOCK_ACCESS_MANAGER_CREDENTIAL_ISSUER_CERTIFICATE_KEYS
 
-#ifdef CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#if defined(CONFIG_DOOR_LOCK_INTERNAL_ZMS)
+#include <internal_zms/internal_zms.h>
+#include <zephyr/storage/flash_map.h>
+#elif defined(CONFIG_DOOR_LOCK_EXTERNAL_NVS)
 #include <external_nvs/external_nvs.h>
 #include <zephyr/storage/flash_map.h>
-#endif // CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#endif // CONFIG_DOOR_LOCK_INTERNAL_ZMS || CONFIG_DOOR_LOCK_EXTERNAL_NVS
 
 #ifdef CONFIG_DOOR_LOCK_CLI
 #include "shell.h"
@@ -328,10 +331,13 @@ int AliroInit()
 	);
 	VerifyOrReturnValue(ec == ALIRO_NO_ERROR, EXIT_FAILURE, LOG_ERR("Cannot initialize Reader storage"));
 
-#ifdef CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#if defined(CONFIG_DOOR_LOCK_INTERNAL_ZMS)
+	auto initRc = DoorLock::InternalZms::Init(PARTITION_ID(internal_zms_partition));
+	VerifyOrReturnValue(initRc == 0, EXIT_FAILURE, LOG_ERR("Internal ZMS init failed: %d", initRc));
+#elif defined(CONFIG_DOOR_LOCK_EXTERNAL_NVS)
 	auto initRc = DoorLock::ExternalNvs::Init(PARTITION_ID(external_nvs_partition));
 	VerifyOrReturnValue(initRc == 0, EXIT_FAILURE, LOG_ERR("External NVS init failed: %d", initRc));
-#endif // CONFIG_DOOR_LOCK_EXTERNAL_NVS
+#endif // CONFIG_DOOR_LOCK_INTERNAL_ZMS || CONFIG_DOOR_LOCK_EXTERNAL_NVS
 
 #if defined(CONFIG_DOOR_LOCK_STEP_UP_PHASE) && CONFIG_DOOR_LOCK_STORAGE_MAX_STORED_ACCESS_DOCUMENTS > 0
 	ec = LoadAccessDocuments();

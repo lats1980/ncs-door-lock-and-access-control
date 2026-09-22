@@ -8,12 +8,29 @@
 
 #include "access_manager_impl.h"
 #include "aliro/utils.h"
+#if defined(CONFIG_DOOR_LOCK_INTERNAL_ZMS)
+#include "internal_zms_ids.h"
+
+#include <internal_zms/internal_zms.h>
+#elif defined(CONFIG_DOOR_LOCK_EXTERNAL_NVS)
 #include "external_nvs_ids.h"
 
 #include <external_nvs/external_nvs.h>
+#else
+#error "Access Document storage requires CONFIG_DOOR_LOCK_INTERNAL_ZMS or CONFIG_DOOR_LOCK_EXTERNAL_NVS"
+#endif // CONFIG_DOOR_LOCK_INTERNAL_ZMS || CONFIG_DOOR_LOCK_EXTERNAL_NVS
+
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(access_document, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
+
+#if defined(CONFIG_DOOR_LOCK_INTERNAL_ZMS)
+namespace Nvs = DoorLock::InternalZms;
+namespace NvsIds = DoorLock::Storage::InternalZmsIds;
+#elif defined(CONFIG_DOOR_LOCK_EXTERNAL_NVS)
+namespace Nvs = DoorLock::ExternalNvs;
+namespace NvsIds = DoorLock::Storage::ExternalNvsIds;
+#endif // CONFIG_DOOR_LOCK_INTERNAL_ZMS || CONFIG_DOOR_LOCK_EXTERNAL_NVS
 
 namespace Aliro {
 
@@ -33,22 +50,21 @@ struct AccessDocumentV1 {
 };
 #endif // CONFIG_DOOR_LOCK_STORAGE_MIGRATE_ACCESS_DOCUMENT_V1
 
-DoorLock::ExternalNvs::Id GetExternalNvsId(size_t index)
+Nvs::Id GetStorageId(size_t index)
 {
-	return DoorLock::Storage::ExternalNvsIds::kAccessDocumentRangeStart +
-	       static_cast<DoorLock::ExternalNvs::Id>(index);
+	return NvsIds::kAccessDocumentRangeStart + static_cast<Nvs::Id>(index);
 }
 
 bool IsIndexInRange(size_t index)
 {
-	return index < DoorLock::Storage::ExternalNvsIds::kAccessDocumentRangeSize;
+	return index < NvsIds::kAccessDocumentRangeSize;
 }
 
 int ReadAccessDocumentHelper(size_t index, AccessDocument &ad)
 {
-	const auto id = GetExternalNvsId(index);
+	const auto id = GetStorageId(index);
 	size_t len = sizeof(AccessDocument);
-	const auto error = DoorLock::ExternalNvs::Read(id, &ad, len);
+	const auto error = Nvs::Read(id, &ad, len);
 
 	if (error != 0) {
 		return error;
@@ -116,8 +132,8 @@ AliroError StoreAccessDocument(size_t index, const AccessDocument &ad)
 	VerifyOrReturnStatus(IsIndexInRange(index), ALIRO_INVALID_ARGUMENT,
 			     LOG_ERR("Access Document index out of range: %zu", index));
 
-	const auto id = GetExternalNvsId(index);
-	const auto error = DoorLock::ExternalNvs::Write(id, &ad, sizeof(AccessDocument));
+	const auto id = GetStorageId(index);
+	const auto error = Nvs::Write(id, &ad, sizeof(AccessDocument));
 	VerifyOrReturnStatus(error == 0, AliroError::FromInt(error),
 			     LOG_ERR("Failed to store Access Document at index: %zu", index));
 
@@ -141,8 +157,8 @@ AliroError ClearAccessDocument(size_t index)
 	VerifyOrReturnStatus(IsIndexInRange(index), ALIRO_INVALID_ARGUMENT,
 			     LOG_ERR("Access Document index out of range: %zu", index));
 
-	const auto id = GetExternalNvsId(index);
-	const auto error = DoorLock::ExternalNvs::Delete(id);
+	const auto id = GetStorageId(index);
+	const auto error = Nvs::Delete(id);
 	VerifyOrReturnStatus(error == 0, AliroError::FromInt(error),
 			     LOG_ERR("Failed to clear Access Document at index: %zu", index));
 
