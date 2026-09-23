@@ -5,10 +5,11 @@
  */
 
 #include "matter/init.h"
-
+#ifdef CONFIG_ALIRO
 #include "aliro/utils.h"
 
 #include <crypto_utils/crypto_utils.h>
+#endif // CONFIG_ALIRO
 #include <zephyr/logging/log.h>
 
 #include <cstdlib>
@@ -23,6 +24,13 @@ LOG_MODULE_REGISTER(app, CONFIG_CHIP_APP_LOG_LEVEL);
 
 int main()
 {
+#ifdef CONFIG_ALIRO_AT_HOST
+	int err = StartMatter();
+	if (err != EXIT_SUCCESS) {
+		LOG_ERR("Failed to start Matter: %d", err);
+		return err;
+	}
+#else
 	auto error = DoorLock::CryptoUtils::Init();
 	VerifyOrDie(error == ALIRO_NO_ERROR, "Failed to initialize crypto utils");
 
@@ -60,6 +68,7 @@ int main()
 
 	int err = StartMatter();
 	VerifyOrDie(err == EXIT_SUCCESS, "Failed to start Matter");
+#endif // CONFIG_ALIRO_AT_HOST
 
 	return EXIT_SUCCESS;
 }

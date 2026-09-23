@@ -7,8 +7,8 @@
 menuconfig DOOR_LOCK_ALIRO_DOOR_LOCK_DELEGATE
 	bool "Matter Door Lock Delegate for Aliro"
 	depends on CHIP
-	depends on NCS_ALIRO
-	depends on DOOR_LOCK_ALIRO_READER_STORAGE
+	depends on NCS_ALIRO || ALIRO_AT_HOST
+	depends on DOOR_LOCK_ALIRO_READER_STORAGE || ALIRO_AT_HOST
 	depends on PSA_WANT_GENERATE_RANDOM
 
 if DOOR_LOCK_ALIRO_DOOR_LOCK_DELEGATE

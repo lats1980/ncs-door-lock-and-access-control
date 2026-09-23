@@ -6,6 +6,8 @@
 
 zephyr_include_directories(include)
 
+zephyr_include_directories_ifdef(CONFIG_ALIRO_AT_MODULE ${CMAKE_CURRENT_SOURCE_DIR}/../aliro_at/include)
+
 zephyr_library()
 
 zephyr_library_sources(src/nus_service.cpp)

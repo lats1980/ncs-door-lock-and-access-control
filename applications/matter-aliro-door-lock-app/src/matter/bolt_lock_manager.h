@@ -15,9 +15,9 @@
 #include <zephyr/kernel.h>
 
 #include <cstdint>
-
+#ifdef CONFIG_ALIRO
 #include <lock_sim.h>
-
+#endif // CONFIG_ALIRO
 class BoltLockManager {
 	using AccessMgr = DoorLock::MatterAccess::AccessManagerType;
 
@@ -80,6 +80,7 @@ public:
 
 	bool Lock(Aliro::OperationSource source, const Nullable<ValidateCredentialResult> &validateCredentialResult);
 	bool Unlock(Aliro::OperationSource source, const Nullable<ValidateCredentialResult> &validateCredentialResult);
+	void UpdateState(Aliro::ReaderStateByte state);
 
 #ifdef CONFIG_DOOR_LOCK_MATTER_ACCESS_CREDENTIAL_TYPES_PIN
 	void SetRequirePIN(bool require);
@@ -91,17 +92,15 @@ public:
 private:
 	friend class AppTask;
 
-	void UpdateState(Aliro::ReaderStateByte state);
-
 	friend BoltLockManager &BoltLockMgr();
 
 	StateData mStateData = {
 		Aliro::ReaderStateByte::Secured, OperationSource::kButton, Aliro::OperationSource::Manual, {}, {}, {}
 	};
 	StateChangeCallback mStateChangeCallback = nullptr;
-
+#ifdef CONFIG_ALIRO
 	Aliro::LockSim mLockSim;
-
+#endif // CONFIG_ALIRO
 	static BoltLockManager sLock;
 };
 

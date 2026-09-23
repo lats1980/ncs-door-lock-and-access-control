@@ -6,7 +6,7 @@
 
 menuconfig DOOR_LOCK_ALIRO_TIME_UTILS
 	bool "Aliro Time Utils"
-	depends on NCS_ALIRO && CHIP
+	depends on NCS_ALIRO && (CHIP || ALIRO_AT_MODULE)
 
 if DOOR_LOCK_ALIRO_TIME_UTILS
 

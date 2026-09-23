@@ -10,6 +10,11 @@
 #include "board/led_widget.h"
 #include "bolt_lock_manager.h"
 
+#ifdef CONFIG_ALIRO_AT_HOST
+#include "aliro_at/at_host.h"
+#include "aliro_at/at_command.h"
+#endif // CONFIG_ALIRO_AT_HOST
+
 struct k_timer;
 struct Identify;
 
@@ -39,6 +44,10 @@ private:
 	static void ButtonEventHandler(Nrf::ButtonState state, Nrf::ButtonMask hasChanged);
 	static void LockStateChanged(const BoltLockManager::StateData &stateData);
 	static void UpdateClusterStateHandler(const BoltLockManager::StateData &stateData);
+
+#ifdef CONFIG_ALIRO_AT_HOST
+	static void AtHostEventHandler(enum at_host_event event);
+#endif
 
 #ifdef CONFIG_DOOR_LOCK_NUS_SERVICE
 	static void NUSLockCallback(void *context);

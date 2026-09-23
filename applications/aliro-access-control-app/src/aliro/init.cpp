@@ -50,7 +50,7 @@
 #endif // CONFIG_DOOR_LOCK_CLI
 
 #include "aliro_state_control.h"
-#include "lock_sim_instance.h"
+#include <lock_sim_instance.h>
 #include "storage.h"
 #include "storage_keys.h"
 
@@ -62,6 +62,10 @@
 #include <cstdio>
 #include <stdlib.h>
 #include <tuple>
+
+#ifdef CONFIG_ALIRO_AT_MODULE
+#include "aliro_at/at_module.h"
+#endif // CONFIG_ALIRO_AT_MODULE
 
 LOG_MODULE_REGISTER(aliro, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
@@ -159,6 +163,10 @@ constexpr uint8_t GetApplicationFeatures()
 #ifdef CONFIG_DOOR_LOCK_READER_CERTIFICATE
 	features |= kFeatureReaderCertificateSupported;
 #endif // CONFIG_DOOR_LOCK_READER_CERTIFICATE
+
+#ifdef CONFIG_ALIRO_AT_MODULE
+	features |= kFeatureMatterSupported;
+#endif
 
 	return features;
 }
@@ -272,6 +280,12 @@ int AliroInit()
 			VerifyOrReturn(error == ALIRO_NO_ERROR, LOG_ERR("Failed to start Aliro advertising"));
 		}
 #endif // CONFIG_DOOR_LOCK_BLE_UWB
+#ifdef CONFIG_ALIRO_AT_MODULE
+		int err = dl_notify_lock_state(state);
+		if (err) {	
+			LOG_ERR("Failed to notify lock state message: %d", err);
+		}
+#endif // CONFIG_ALIRO_AT_MODULE
 	});
 
 	AccessManagerInstance().SetApplicationCallbacks(
@@ -393,4 +407,14 @@ int AliroStop()
 bool IsAliroRunning()
 {
 	return sAliroRunning;
+}
+
+void ClearStorageAliro(bool reinitializeStorage)
+{
+	ARG_UNUSED(reinitializeStorage);
+
+	AliroError err = DoorLock::ReaderStorage::ClearAll();
+	if (err != ALIRO_NO_ERROR) {
+		LOG_ERR("Failed to clear Reader storage: %d", err.ToInt());
+	}
 }

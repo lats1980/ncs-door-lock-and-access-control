@@ -19,6 +19,11 @@
 #include <array>
 #include <cstring>
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+#include <aliro_at/at_module.h>
+#include <aliro_at/at_transport.h>
+#endif // CONFIG_ALIRO_AT_MODULE
+
 LOG_MODULE_REGISTER(NusService, CONFIG_DOOR_LOCK_NUS_SERVICE_LOG_LEVEL);
 
 namespace DoorLock::NUSService {
@@ -56,9 +61,62 @@ BT_CONN_CB_DEFINE(doorlock_nus_conn_callbacks) = {
 	.disconnected = Disconnected,
 };
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+bt_nus_cb sNusCallbacks = {
+	.received = RxCallback,
+	.send_enabled = [](enum bt_nus_send_status status) {
+		LOG_INF("NUS send enabled status: %d", status);
+		if (status == BT_NUS_SEND_STATUS_ENABLED) {
+			at_module_update_event(AT_MODULE_TRANSPORT_CONNECTED);
+		} else {
+			at_module_update_event(AT_MODULE_TRANSPORT_DISCONNECTED);
+		}
+	},
+};
+#else
 bt_nus_cb sNusCallbacks = {
 	.received = RxCallback,
 };
+#endif // CONFIG_ALIRO_AT_MODULE
+
+#ifdef CONFIG_ALIRO_AT_MODULE
+
+char *GetAddressString(bt_conn *conn)
+{
+#ifdef CONFIG_LOG
+	static char addr[BT_ADDR_LE_STR_LEN];
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	return addr;
+#else
+	ARG_UNUSED(conn);
+	return nullptr;
+#endif
+}
+
+#ifdef CONFIG_BT_APP_PASSKEY
+void AuthPasskeyDisplay(bt_conn *conn, unsigned int passkey)
+{
+	LOG_INF("PROVIDE THE FOLLOWING CODE IN YOUR MOBILE APP: %u", passkey);
+}
+#endif
+
+void AuthCancel(bt_conn *conn)
+{
+	LOG_INF("NUS BT Pairing cancelled: %s", GetAddressString(conn));
+	bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
+}
+
+void PairingComplete(bt_conn *conn, bool bonded)
+{
+	LOG_DBG("NUS BT Pairing completed: %s, bonded: %d", GetAddressString(conn), bonded);
+}
+
+void PairingFailed(bt_conn *conn, bt_security_err reason)
+{
+	LOG_ERR("NUS BT Pairing failed to %s: reason %d", GetAddressString(conn), static_cast<int>(reason));
+}
+
+#endif // CONFIG_ALIRO_AT_MODULE
 
 bool IsDefaultBtId(const bt_conn *conn)
 {
@@ -90,6 +148,21 @@ void DispatchCommand(const char *const data, uint16_t len)
 		if (memcmp(data, c.mCommand.data(), c.mCommandLength) != 0) {
 			return false;
 		}
+
+#ifdef CONFIG_ALIRO_AT_MODULE
+		if (memcmp(data, "AT", 2) == 0) {
+			LOG_INF("Received AT command over NUS, length: %d command len: %zu", len, c.mCommandLength);
+			LOG_HEXDUMP_INF(data, len, "Received AT command:");
+			if (at_transport_rx(reinterpret_cast<const uint8_t *>(data), len) == 0) {
+				LOG_DBG("AT transport received data successfully");
+			} else {
+				LOG_ERR("Failed to send data to AT transport");
+			}
+			return true;
+		}
+		LOG_INF("Received NUS command: %.*s", static_cast<int>(c.mCommandLength),
+			reinterpret_cast<const char *>(c.mCommand.data()));
+#endif // CONFIG_ALIRO_AT_MODULE
 
 		if (len == c.mCommandLength) {
 			return true;
@@ -143,7 +216,8 @@ void Connected(bt_conn *conn, uint8_t err)
 	sBTConnection = bt_conn_ref(conn);
 	VerifyOrReturn(sBTConnection, LOG_ERR("Failed to increment NUS connection reference count"));
 
-	bt_conn_set_security(sBTConnection, BT_SECURITY_L3);
+	/* Match legacy bt_nus and AT NUS central (both use L2). L3 triggers BT_SECURITY_ERR_AUTH_REQUIREMENT. */
+	bt_conn_set_security(sBTConnection, BT_SECURITY_L2);
 	LOG_INF("NUS connected");
 }
 
@@ -157,12 +231,41 @@ void Disconnected(bt_conn *conn, uint8_t reason)
 	sBTConnection = nullptr;
 
 	LOG_INF("NUS disconnected (reason: %u)", reason);
+#ifdef CONFIG_ALIRO_AT_MODULE
+	at_module_update_event(AT_MODULE_TRANSPORT_DISCONNECTED);
+#endif // CONFIG_ALIRO_AT_MODULE
 }
 
 } // anonymous namespace
 
 int Init()
 {
+#ifdef CONFIG_ALIRO_AT_MODULE
+	static bt_conn_auth_cb sConnAuthCallbacks = {
+#ifdef CONFIG_BT_APP_PASSKEY
+		.passkey_display = AuthPasskeyDisplay,
+		.app_passkey =
+			[](bt_conn *) {
+				return CONFIG_DOOR_LOCK_BLE_MANAGER_AUTH_APP_PASSKEY;
+			},
+#endif // CONFIG_BT_APP_PASSKEY
+		.cancel = AuthCancel,
+	};
+
+	static bt_conn_auth_info_cb sConnAuthInfoCallbacks = {
+		.pairing_complete = PairingComplete,
+		.pairing_failed = PairingFailed,
+	};
+
+	int authErr = bt_conn_auth_cb_register(&sConnAuthCallbacks);
+	VerifyOrReturnValue(authErr == 0 || authErr == -EALREADY, authErr,
+			    LOG_ERR("Failed to register NUS auth callbacks: %d", authErr));
+
+	authErr = bt_conn_auth_info_cb_register(&sConnAuthInfoCallbacks);
+	VerifyOrReturnValue(authErr == 0 || authErr == -EALREADY, authErr,
+			    LOG_ERR("Failed to register NUS auth info callbacks: %d", authErr));
+#endif // CONFIG_ALIRO_AT_MODULE
+
 	const int err = bt_nus_init(&sNusCallbacks);
 	VerifyOrReturnValue(err == 0, err, LOG_ERR("Failed to initialize NUS service: %d", err));
 

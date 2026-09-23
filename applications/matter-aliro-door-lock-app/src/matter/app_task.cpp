@@ -28,9 +28,11 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <setup_payload/OnboardingCodesUtil.h>
 
+#ifndef CONFIG_ALIRO_AT_HOST
 #include <aliro/aliro.h>
 #include <aliro/aliro_state_control.h>
 #include <aliro/init.h>
+#endif
 
 #include <zephyr/logging/log.h>
 
@@ -39,6 +41,55 @@ LOG_MODULE_DECLARE(app, CONFIG_CHIP_APP_LOG_LEVEL);
 using namespace ::chip;
 using namespace ::chip::app;
 using namespace ::chip::DeviceLayer;
+
+#ifdef CONFIG_ALIRO_AT_HOST
+#define DL_TIME_REQ_URC "+TIME: REQ"
+static void time_req_urc_handler(const uint8_t *data, size_t datalen);
+DL_AT_RSP(time_req, DL_TIME_REQ_URC, time_req_urc_handler);
+
+void task_time_req_urc_handler(void *context)
+{
+	(void)context;
+	uint16_t year{};
+	uint8_t month{};
+	uint8_t dayOfMonth{};
+	uint8_t hour{};
+	uint8_t minute{};
+	uint8_t second{};
+
+	System::Clock::Milliseconds64 currentUnixTimeMS;
+	auto err = System::SystemClock().GetClock_RealTimeMS(currentUnixTimeMS);
+
+	if (err == CHIP_NO_ERROR) {
+		const auto currentUnixTime =
+			std::chrono::duration_cast<System::Clock::Seconds32>(currentUnixTimeMS);
+		SecondsSinceUnixEpochToCalendarTime(currentUnixTime.count(), year, month, dayOfMonth,
+						    hour, minute, second);
+		(void)at_send_time_response(year, month, dayOfMonth, hour, minute, second);
+		return;
+	}
+
+	LOG_WRN("Wall clock time not available, falling back to Last Known Good Time");
+	System::Clock::Seconds32 lastKnownGoodChipEpochTime{};
+	err = Server::GetInstance().GetFabricTable().GetLastKnownGoodChipEpochTime(
+		lastKnownGoodChipEpochTime);
+	if (err != CHIP_NO_ERROR) {
+		LOG_ERR("Failed to retrieve Last Known Good UTC Time for TIME REQ");
+		return;
+	}
+	ChipEpochToCalendarTime(lastKnownGoodChipEpochTime.count(), year, month, dayOfMonth, hour,
+				minute, second);
+	(void)at_send_time_response(year, month, dayOfMonth, hour, minute, second);
+}
+
+static void time_req_urc_handler(const uint8_t *data, size_t datalen)
+{
+	(void)data;
+	(void)datalen;
+
+	Nrf::PostTask([] { task_time_req_urc_handler(nullptr); });
+}
+#endif /* CONFIG_ALIRO_AT_HOST */
 
 namespace {
 constexpr EndpointId kLockEndpointId{ 1 };
@@ -68,7 +119,13 @@ void AppEventHandler(const ChipDeviceEvent *event, [[maybe_unused]] intptr_t)
 		// With this configuration we have to manually clean up the storage,
 		// as whole settings partition won't be erased.
 		BoltLockMgr().FactoryReset();
+#if defined(CONFIG_ALIRO_AT_HOST)
+		if (!at_reader_clear_storage(reinitializeStorage)) {
+			LOG_ERR("Failed to clear Aliro storage on factory reset");
+		}
+#else
 		ClearStorageAliro(reinitializeStorage);
+#endif
 		break;
 	default:
 		break;
@@ -301,7 +358,14 @@ CHIP_ERROR AppTask::Init()
 
 	/* Initialize Matter stack */
 	ReturnErrorOnFailure(Nrf::Matter::PrepareServer(initData));
-
+#ifdef CONFIG_ALIRO_AT_HOST
+	/* PrepareServer initializes Matter BLE first, including BT identities, before AT Host can enable BLE.
+	 * Initialize AT Host before BoltLockMgr loads persisted credentials, whose callbacks send AT commands.
+	 * This ensures the BLE transport is connected before credential synchronization starts.
+	 */
+	int err = at_host_init(AppTask::AtHostEventHandler);
+	VerifyOrReturnError(err == 0, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to init AT Host"));
+#endif
 	if (!Nrf::GetBoard().Init(ButtonEventHandler)) {
 		LOG_ERR("User interface initialization failed.");
 		return CHIP_ERROR_INCORRECT_STATE;
@@ -339,12 +403,37 @@ CHIP_ERROR AppTask::Init()
 	return Nrf::Matter::StartServer();
 }
 
+#ifdef CONFIG_ALIRO_AT_HOST
+void AppTask::AtHostEventHandler(enum at_host_event event)
+{
+	switch (event) {
+	case AT_HOST_TRANSPORT_CONNECTED:
+		LOG_INF("AT Host transport connected");
+#if defined(CONFIG_ALIRO_AT_TRANSPORT_STATE_INDICATOR)
+		Nrf::PostTask([] { Nrf::GetBoard().GetLED(Nrf::DeviceLeds::LED3).Set(true); });
+#endif
+		break;
+	case AT_HOST_TRANSPORT_DISCONNECTED:
+		LOG_INF("AT Host transport disconnected");
+#if defined(CONFIG_ALIRO_AT_TRANSPORT_STATE_INDICATOR)
+		Nrf::PostTask([] { Nrf::GetBoard().GetLED(Nrf::DeviceLeds::LED3).Set(false); });
+#endif
+		break;
+	default:
+		LOG_WRN("Unknown AT Host event: %d", (int)event);
+		break;
+	}
+}
+#endif
+
 CHIP_ERROR AppTask::StartApp()
 {
 	ReturnErrorOnFailure(Init());
+#ifndef CONFIG_ALIRO_AT_HOST
 	VerifyOrReturnError(AliroInit() == EXIT_SUCCESS, CHIP_ERROR_INTERNAL, LOG_ERR("Failed to initialize Aliro"));
 	VerifyOrReturnError(DoorLock::AliroStateControl::UpdateAliroState() == ALIRO_NO_ERROR, CHIP_ERROR_INTERNAL,
 			    LOG_ERR("Failed to update Aliro state"));
+#endif
 
 	while (true) {
 		Nrf::DispatchNextTask();

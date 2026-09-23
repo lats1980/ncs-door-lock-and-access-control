@@ -5,6 +5,7 @@
 #
 
 add_subdirectory(aliro)
+add_subdirectory(aliro_at)
 
 add_subdirectory_ifdef(CONFIG_DOOR_LOCK_ADVERTISING_ARBITER advertising_arbiter)
 add_subdirectory_ifdef(CONFIG_DOOR_LOCK_BLE_MANAGER ble_manager)

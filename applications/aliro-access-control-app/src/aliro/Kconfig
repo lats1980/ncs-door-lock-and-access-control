@@ -58,6 +58,13 @@ config DOOR_LOCK_READER_CERTIFICATE
 	help
 	  Use the reader certificate for the reader authentication.
 
+config DOOR_LOCK_TIME_CONCEPT
+	bool "Support for Time concept"
+	default y
+	select DOOR_LOCK_ALIRO_TIME_UTILS
+	help
+	  If enabled, the Time concept is supported.
+
 endmenu # Aliro features
 
 rsource "platform/Kconfig"

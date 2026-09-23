@@ -76,13 +76,13 @@ config SHELL_CMD_BUFF_SIZE
 	default 256
 
 config DOOR_LOCK_ALIRO_CRYPTO_UTILS
-	default y
+	default y if NCS_ALIRO
 
 config DOOR_LOCK_SETTINGS_UTILS
 	default y
 
 config DOOR_LOCK_ALIRO_WORKQUEUE
-	default y
+	default y if NCS_ALIRO
 
 configdefault DOOR_LOCK_ALIRO_INTERFACE_IMPL_OS
 	default y
@@ -109,7 +109,7 @@ configdefault DOOR_LOCK_ALIRO_INTERFACE_IMPL_OS_BLE_STACK_TIMERS
 	default DOOR_LOCK_BLE_UWB_MAX_SESSIONS if DOOR_LOCK_BLE_UWB
 
 config DOOR_LOCK_ALIRO_READER_STORAGE
-	default y
+	default y if NCS_ALIRO
 
 configdefault DOOR_LOCK_BLE_UWB_MAX_SESSIONS
 	default 1 if DOOR_LOCK_BLE_UWB

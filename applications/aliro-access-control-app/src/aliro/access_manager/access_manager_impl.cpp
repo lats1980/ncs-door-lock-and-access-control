@@ -53,7 +53,11 @@ K_MUTEX_DEFINE(sMutex);
 
 #ifdef CONFIG_DOOR_LOCK_STEP_UP_PHASE
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+constexpr std::array<uint8_t, 7> kElementIdentifier{ 'm', 'a', 't', 't', 'e', 'r', '1' };
+#else
 constexpr std::array<uint8_t, 6> kElementIdentifier{ 'f', 'l', 'o', 'o', 'r', '1' };
+#endif
 
 constexpr Interface::Access::AccessDocumentRequestParams kAccessDocumentRequestParams{
 	.mElementIdentifier = { kElementIdentifier.data(), kElementIdentifier.size() },

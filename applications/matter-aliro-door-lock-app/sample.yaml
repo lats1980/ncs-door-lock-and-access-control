@@ -45,6 +45,14 @@ tests:
       - CONFIG_DOOR_LOCK_STEP_UP_PHASE=n
       - CONFIG_DOOR_LOCK_CREDENTIAL_ISSUER_CA=n
       - CONFIG_DOOR_LOCK_READER_CERTIFICATE=n
+  app.door_lock.nfc.matter-at_host_ble:
+    tags:
+      - dfu_supported
+    platform_allow: *platform_54l15
+    integration_platforms: *platform_54l15
+    extra_args:
+      - matter-aliro-door-lock-app_EXTRA_CONF_FILE="overlay-aliro_at_host.conf;overlay-aliro_at_transport_ble_host.conf"
+      - FILE_SUFFIX=at_host
   app.door_lock.nfc.matter-bt_nus-release:
     tags:
       - dfu_supported

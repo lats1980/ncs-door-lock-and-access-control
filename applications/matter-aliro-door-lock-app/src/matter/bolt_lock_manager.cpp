@@ -6,17 +6,44 @@
 
 #include "bolt_lock_manager.h"
 #include "app/task_executor.h"
-
+#ifdef CONFIG_ALIRO
 #include "aliro/access_manager/access_manager.h"
 #include "aliro/aliro.h"
-
+#endif // CONFIG_ALIRO
 #include <platform/CHIPDeviceLayer.h>
-
+#ifdef CONFIG_ALIRO
 #ifdef CONFIG_DOOR_LOCK_STEP_UP_PHASE
 #include "validity_iterations.h"
 #endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE
-
+#endif // CONFIG_ALIRO
 #include "app_task.h"
+
+#ifdef CONFIG_ALIRO_AT_HOST
+#include "aliro_at/at_host.h"
+
+#include <cstdlib>
+#include <cstring>
+#include <zephyr/logging/log.h>
+
+LOG_MODULE_DECLARE(app, CONFIG_CHIP_APP_LOG_LEVEL);
+
+#define DL_LOCKSTATE_URC "+LOCKSTATE: "
+static void lockstate_handler(const uint8_t *data, size_t datalen);
+DL_AT_RSP(lockstate, DL_LOCKSTATE_URC, lockstate_handler);
+
+static void lockstate_handler(const uint8_t *data, size_t datalen)
+{
+	LOG_INF("Received AT response: %.*s", static_cast<int>(datalen), data);
+	if (datalen < strlen(DL_LOCKSTATE_URC) + 1) {
+		LOG_ERR("Invalid LOCKSTATE response length: %zu", datalen);
+		return;
+	}
+
+	const int lockState = atoi(reinterpret_cast<const char *>(data) + strlen(DL_LOCKSTATE_URC));
+	LOG_INF("Received LOCKSTATE response: %d", lockState);
+	Nrf::PostTask([lockState] { BoltLockMgr().UpdateState(static_cast<Aliro::ReaderStateByte>(lockState)); });
+}
+#endif // CONFIG_ALIRO_AT_HOST
 
 using namespace chip;
 
@@ -44,6 +71,7 @@ namespace {
 	}
 }
 
+#ifndef CONFIG_ALIRO_AT_HOST
 bool ValidateAliroCredential(const Aliro::CryptoTypes::PublicKey &accessCredentialPublicKey,
 			     Nullable<BoltLockManager::ValidateCredentialResult> &result)
 {
@@ -59,13 +87,15 @@ bool ValidateAliroCredential(const Aliro::CryptoTypes::PublicKey &accessCredenti
 
 	return success;
 }
+#endif // CONFIG_ALIRO_AT_HOST
 
 } // namespace
 
 void BoltLockManager::Init(StateChangeCallback callback)
 {
 	mStateChangeCallback = callback;
-
+#ifdef CONFIG_ALIRO_AT_HOST
+#else
 	mLockSim.Init(
 		[](Aliro::ReaderStateByte state) { Nrf::PostTask([state] { BoltLockMgr().UpdateState(state); }); });
 
@@ -105,9 +135,26 @@ void BoltLockManager::Init(StateChangeCallback callback)
 				Nrf::PostTask([source, result] { BoltLockMgr().Lock(source, result); });
 			},
 	});
-
+#endif // CONFIG_ALIRO_AT_HOST
 	auto addPublicKey = [](uint16_t credentialIndex, CredentialTypeEnum credentialType,
 			       chip::ByteSpan credentialData) {
+#ifdef CONFIG_ALIRO_AT_HOST
+		uint8_t type = 0;
+		if (credentialType == CredentialTypeEnum::kAliroNonEvictableEndpointKey) {
+			type = 0; /* AccessCredential */
+		} else if (credentialType == CredentialTypeEnum::kAliroCredentialIssuerKey) {
+			type = 1; /* CredentialIssuer */
+		} else if (credentialType == CredentialTypeEnum::kAliroEvictableEndpointKey) {
+			type = 2; /* AccessDocument */
+		} else {
+			LOG_ERR("addPublicKey: unsupported credential type %u",
+				static_cast<uint8_t>(credentialType));
+			return;
+		}
+		if (!at_amcmgr_add_public_key(credentialIndex - 1, type, credentialData.data())) {
+			LOG_ERR("addPublicKey: AT+AMCMGR=1 failed");
+		}
+#else
 		Aliro::CryptoTypes::PublicKey publicKey{};
 		std::copy_n(credentialData.data(), publicKey.size(), publicKey.data());
 
@@ -124,10 +171,28 @@ void BoltLockManager::Init(StateChangeCallback callback)
 			Aliro::AccessManagerInstance().AddPublicKey(
 				publicKey, Aliro::AccessManager::PublicKeyType::CredentialIssuer, keyIndex);
 		}
+#endif
 	};
 
 	auto removePublicKey = []([[maybe_unused]] uint16_t credentialIndex, CredentialTypeEnum credentialType,
-				  chip::ByteSpan credentialData) {
+				  [[maybe_unused]] chip::ByteSpan credentialData) {
+#ifdef CONFIG_ALIRO_AT_HOST
+		uint8_t type = 0;
+		if (credentialType == CredentialTypeEnum::kAliroNonEvictableEndpointKey) {
+			type = 0; /* AccessCredential */
+		} else if (credentialType == CredentialTypeEnum::kAliroCredentialIssuerKey) {
+			type = 1; /* CredentialIssuer */
+		} else if (credentialType == CredentialTypeEnum::kAliroEvictableEndpointKey) {
+			type = 2; /* AccessDocument */
+		} else {
+			LOG_ERR("removePublicKey: unsupported credential type %u",
+				static_cast<uint8_t>(credentialType));
+			return;
+		}
+		if (!at_amcmgr_remove_public_key(credentialIndex, type)) {
+			LOG_ERR("removePublicKey: AT+AMCMGR=0 failed");
+		}
+#else
 		Aliro::CryptoTypes::PublicKey publicKey{};
 		std::copy_n(credentialData.data(), publicKey.size(), publicKey.data());
 
@@ -148,6 +213,7 @@ void BoltLockManager::Init(StateChangeCallback callback)
 			Aliro::ClearValidityIterations(keyIndex);
 #endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE
 		}
+#endif // CONFIG_ALIRO_AT_HOST
 	};
 
 	AccessMgr::Instance().Init(addPublicKey, removePublicKey, nullptr, addPublicKey);
@@ -256,8 +322,11 @@ void BoltLockManager::Lock(const OperationSource source, const Nullable<chip::Fa
 		       fabricIdx,
 		       nodeId,
 		       validateCredentialResult };
-
+#ifdef CONFIG_ALIRO_AT_HOST
+	at_aliro_lock(ToAliroOperationSource(source));
+#else
 	mLockSim.Lock();
+#endif
 }
 
 void BoltLockManager::Unlock(const OperationSource source, const Nullable<chip::FabricIndex> &fabricIdx,
@@ -271,8 +340,11 @@ void BoltLockManager::Unlock(const OperationSource source, const Nullable<chip::
 		       fabricIdx,
 		       nodeId,
 		       validateCredentialResult };
-
+#ifdef CONFIG_ALIRO_AT_HOST
+	at_aliro_unlock(ToAliroOperationSource(source));
+#else
 	mLockSim.Unlock();
+#endif
 }
 
 bool BoltLockManager::Lock(Aliro::OperationSource source,
@@ -286,7 +358,11 @@ bool BoltLockManager::Lock(Aliro::OperationSource source,
 		       NullNullable,
 		       validateCredentialResult };
 
+#ifdef CONFIG_ALIRO_AT_HOST
+	at_aliro_lock(source);
+#else
 	mLockSim.Lock();
+#endif
 	return true;
 }
 
@@ -301,7 +377,11 @@ bool BoltLockManager::Unlock(Aliro::OperationSource source,
 		       NullNullable,
 		       validateCredentialResult };
 
+#ifdef CONFIG_ALIRO_AT_HOST
+	at_aliro_unlock(source);
+#else
 	mLockSim.Unlock();
+#endif
 	return true;
 }
 

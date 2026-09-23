@@ -7,9 +7,11 @@
 #include "app_task.h"
 #include "bolt_lock_manager.h"
 #include "time_sync_delegate.h"
-
+#ifdef CONFIG_ALIRO_AT_HOST
+#else
 #include "aliro/aliro_state_control.h"
 #include "aliro/init.h"
+#endif
 #include <door_lock_delegate/door_lock_delegate.h>
 
 #include <app-common/zap-generated/attributes/Accessors.h>
@@ -28,10 +30,17 @@ using ::chip::app::DataModel::Nullable;
 
 namespace {
 
+#ifdef CONFIG_ALIRO_AT_HOST
+class DoorLockDelegateImpl : public DoorLock::DoorLockDelegate {
+	void OnAliroReaderConfigSet() override {}
+	void OnAliroReaderConfigClear() override {}
+};
+#else
 class DoorLockDelegateImpl : public DoorLock::DoorLockDelegate {
 	void OnAliroReaderConfigSet() override { DoorLock::AliroStateControl::UpdateAliroState(); }
 	void OnAliroReaderConfigClear() override { AliroStop(); }
 };
+#endif
 
 DoorLockDelegateImpl gDoorLockDelegate;
 TimeSyncDelegate gTimeSyncDelegate;
