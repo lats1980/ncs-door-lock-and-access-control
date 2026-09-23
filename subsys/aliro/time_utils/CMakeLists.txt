@@ -11,3 +11,4 @@ add_library(${lib_name} INTERFACE)
 zephyr_append_cmake_library(${lib_name})
 
 target_sources_ifdef(CONFIG_CHIP ${lib_name} INTERFACE src/time_utils_chip.cpp)
+target_sources_ifdef(CONFIG_ALIRO_AT_MODULE ${lib_name} INTERFACE src/time_utils_at_module.cpp)

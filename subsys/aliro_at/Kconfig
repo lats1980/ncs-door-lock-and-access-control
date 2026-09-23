@@ -1,0 +1,91 @@
+#
+# Copyright (c) 2026 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menu "AT command"
+
+config ALIRO_AT_MODULE
+	bool "Aliro AT Module"
+	depends on !CHIP
+	select AT_PARSER
+	help
+	  Enables the AT Module on the reader MCU.
+
+config ALIRO_AT_HOST
+	bool "Door lock AT Host"
+	help
+	  Enables the AT Host on the Matter/host MCU.
+
+config ALIRO_AT_TRANSPORT_SERIAL
+	bool "AT serial transport"
+	default y
+	select SERIAL
+	select UART_ASYNC_API
+	help
+	  Use serial transport for AT (async UART with TX/RX FIFOs).
+
+config ALIRO_AT_UART_PM
+	bool "UART power management for AT transport"
+	default y
+	depends on ALIRO_AT_TRANSPORT_SERIAL && PM_DEVICE
+	select GPIO
+	help
+	  Suspend UART after an idle timeout and wake on RX pin activity.
+
+config ALIRO_AT_UART_IDLE_TIMEOUT_MS
+	int "UART idle timeout before power save (ms)"
+	default 5000
+	depends on ALIRO_AT_UART_PM
+	range 100 60000
+	help
+	  Time without TX/RX activity before UART enters power save mode.
+
+config ALIRO_AT_COMMAND_BUF_SIZE
+	int "UART buffer size for TX and RX"
+	default 256
+	range 64 4096
+	help
+	  Size of each UART TX and RX buffer in bytes.
+
+config ALIRO_AT_RX_EVENT_QUEUE_SIZE
+	int "RX event message queue size"
+	default 8
+	range 4 32
+	help
+	  Number of RX events that can be queued for at_process processing.
+
+config ALIRO_AT_TRANSPORT_BLE
+	bool "AT BLE transport"
+	depends on ALIRO_AT_MODULE || ALIRO_AT_HOST
+	help
+	  Use BLE transport for AT commands.
+
+	  On the Aliro MCU (AT Module), use together with
+	  overlay-aliro_at_transport_ble_module.conf and the bt_nus snippet.
+
+	  On the Matter MCU (AT Host, CONFIG_CHIP), use together with
+	  overlay-aliro_at_transport_ble_host.conf in matter-aliro-door-lock-app.
+
+config ALIRO_AT_TRANSPORT_STATE_INDICATOR
+	bool "AT transport state indicator"
+	default y if ALIRO_AT_TRANSPORT_BLE
+	help
+	  Enable indication of the AT transport state (connected/disconnected).
+
+config ALIRO_AT_MODULE_MAX_CUSTOM_CMDS
+	int "Maximum number of custom AT commands"
+	default 16
+	depends on ALIRO_AT_MODULE
+	help
+	  Maximum number of custom AT commands registered via DL_AT_CMD.
+
+config ALIRO_AT_MODULE_MAX_CUSTOM_RSPS
+	int "Maximum number of custom AT response handlers"
+	default 16
+	depends on ALIRO_AT_HOST
+	help
+	  Maximum number of custom AT response handlers registered via DL_AT_RSP.
+
+endmenu

@@ -35,9 +35,9 @@ rsource "src/Kconfig"
 rsource "Kconfig.defconfig"
 
 # Source BLE defconfig when any BLE feature is enabled
-if DOOR_LOCK_BLE_UWB || DOOR_LOCK_DFU_SMP_SERVICE || DOOR_LOCK_NUS_SERVICE
+if DOOR_LOCK_BLE_UWB || DOOR_LOCK_DFU_SMP_SERVICE || DOOR_LOCK_NUS_SERVICE || ALIRO_AT_TRANSPORT_BLE
 rsource "Kconfig.ble.defconfig"
-endif # DOOR_LOCK_BLE_UWB || DOOR_LOCK_DFU_SMP_SERVICE || DOOR_LOCK_NUS_SERVICE
+endif # DOOR_LOCK_BLE_UWB || DOOR_LOCK_DFU_SMP_SERVICE || DOOR_LOCK_NUS_SERVICE || ALIRO_AT_TRANSPORT_BLE
 
 rsource "Kconfig.crypto.defconfig"
 

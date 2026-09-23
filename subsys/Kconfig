@@ -8,6 +8,7 @@ menu "Door Lock Subsystems"
 
 rsource "advertising_arbiter/Kconfig"
 rsource "aliro/Kconfig"
+rsource "aliro_at/Kconfig"
 rsource "ble_manager/Kconfig"
 rsource "dfu_smp_service/Kconfig"
 rsource "external_nvs/Kconfig"

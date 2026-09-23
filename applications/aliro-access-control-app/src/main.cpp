@@ -5,12 +5,16 @@
  */
 
 #include "aliro/init.h"
-#include "aliro/lock_sim_instance.h"
+#include <lock_sim_instance.h>
 #include <crypto_utils/crypto_utils.h>
 #include <doorlock/utils/utils.h>
 #include <zephyr/logging/log.h>
 
 #include <cstdlib>
+
+#ifdef CONFIG_ALIRO_AT_MODULE
+#include "aliro_at/at_module.h"
+#endif // CONFIG_ALIRO_AT_MODULE
 
 #ifdef CONFIG_DOOR_LOCK_DFU_SMP_SERVICE
 #include <dfu_smp_service/dfu_smp_service.h>
@@ -83,6 +87,17 @@ int InitDfuSmpButton()
 
 } // namespace
 
+#if defined(CONFIG_ALIRO_AT_MODULE)
+static void s_module_event_cb(enum at_module_event event)
+{
+	if (event == AT_MODULE_TRANSPORT_CONNECTED) {
+		LOG_INF("AT command transport connected");
+	} else {
+		LOG_INF("AT command transport disconnected");
+	}
+}
+#endif // CONFIG_ALIRO_AT_MODULE
+
 int main()
 {
 	auto error = DoorLock::CryptoUtils::Init();
@@ -123,6 +138,11 @@ int main()
 	int err = AliroInit();
 	VerifyOrDie(err == EXIT_SUCCESS, "Failed to initialize Aliro");
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+	err = at_module_init(s_module_event_cb);
+	VerifyOrDie(err == 0, "Failed to init AT Module");
+#endif // CONFIG_ALIRO_AT_MODULE
+
 #ifdef CONFIG_DOOR_LOCK_DFU_SMP_SERVICE
 
 	DoorLock::DfuSmpService::Init(DoorLock::Utils::ToUnderlying(AdvertisingPriority::DFU_SMP),
@@ -137,6 +157,14 @@ int main()
 
 #ifdef CONFIG_DOOR_LOCK_NUS_SERVICE
 
+#ifdef CONFIG_ALIRO_AT_MODULE
+	DoorLock::NUSService::RegisterCommand(
+		"AT",
+		[](void *context) {
+			LOG_INF("AT command received over NUS");
+		},
+		nullptr);
+#else
 	DoorLock::NUSService::RegisterCommand(
 		"Unlock",
 		[](void *context) {
@@ -158,6 +186,7 @@ int main()
 			Aliro::LockSimInstance().Lock();
 		},
 		nullptr);
+#endif // CONFIG_ALIRO_AT_MODULE
 
 	int nusErr = DoorLock::NUSService::Init();
 	VerifyOrDie(nusErr == 0, "Failed to initialize NUS service");

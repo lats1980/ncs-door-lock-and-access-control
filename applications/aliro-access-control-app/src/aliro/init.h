@@ -34,3 +34,10 @@ int AliroStop();
  * @return true if Aliro stack is running, false otherwise.
  */
 bool IsAliroRunning();
+
+/**
+ * @brief Clears Aliro storage.
+ *
+ * @param reinitializeStorage Whether to reinitialize the storage after clearing.
+ */
+void ClearStorageAliro(bool reinitializeStorage);

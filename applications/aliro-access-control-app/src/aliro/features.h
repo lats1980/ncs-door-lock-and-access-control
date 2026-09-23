@@ -16,5 +16,8 @@ namespace Aliro {
  */
 static constexpr uint8_t kFeatureCredentialIssuerCaPublicKeySupported = static_cast<uint8_t>(BIT(0));
 static constexpr uint8_t kFeatureReaderCertificateSupported = static_cast<uint8_t>(BIT(1));
+#ifdef CONFIG_ALIRO_AT_MODULE
+static constexpr uint8_t kFeatureMatterSupported = static_cast<uint8_t>(BIT(2));
+#endif
 
 } // namespace Aliro

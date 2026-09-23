@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.20.0)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(door-lock-app)
 
-add_subdirectory(src/aliro)
+#add_subdirectory(src/aliro)
 add_subdirectory(src/matter)
 
 file(GLOB app_sources CONFIGURE_DEPENDS src/*.cpp)

@@ -7,9 +7,9 @@
 menuconfig DOOR_LOCK_NUS_SERVICE
 	bool "Door Lock NUS service"
 	select BT_NUS
-	select BT_NUS_AUTHEN
 	select BT_SMP
 	imply DOOR_LOCK_BLE_MANAGER_AUTH
+	imply BT_NUS_AUTHEN
 	select DOOR_LOCK_ADVERTISING_ARBITER if !CHIP
 	help
 	  Enables the Bluetooth LE Nordic UART Service (NUS). Using NUS service you can control
