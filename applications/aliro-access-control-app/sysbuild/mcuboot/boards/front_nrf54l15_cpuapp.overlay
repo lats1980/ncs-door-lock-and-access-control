@@ -1,0 +1,46 @@
+/delete-node/ &boot_partition;
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &other_partition;
+/delete-node/ &storage_partition;
+
+&cpuapp_rram {
+	partitions {
+		boot_partition: partition@0 {
+			compatible = "zephyr,mapped-partition";
+			label = "mcuboot";
+			reg = <0x00000000 DT_SIZE_K(52)>;
+		};
+
+		slot0_partition: partition@d000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x0000d000 DT_SIZE_K(652)>;
+		};
+
+		slot1_partition: partition@b0000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-1";
+			reg = <0x000b0000 DT_SIZE_K(652)>;
+		};
+
+		internal_zms_partition: partition@153000 {
+			compatible = "zephyr,mapped-partition";
+			label = "internal-zms";
+			reg = <0x00153000 DT_SIZE_K(128)>;
+		};
+
+		storage_partition: partition@173000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x00173000 DT_SIZE_K(40)>;
+		};
+	};
+};
+
+/ {
+	chosen {
+		zephyr,code-partition = &boot_partition;
+		zephyr,settings-partition = &storage_partition;
+	};
+};

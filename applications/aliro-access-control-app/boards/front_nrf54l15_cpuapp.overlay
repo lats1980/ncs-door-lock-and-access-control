@@ -1,0 +1,109 @@
+/delete-node/ &boot_partition;
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &other_partition;
+/delete-node/ &storage_partition;
+
+&cpuapp_rram {
+	partitions {
+		boot_partition: partition@0 {
+			compatible = "zephyr,mapped-partition";
+			label = "mcuboot";
+			reg = <0x00000000 DT_SIZE_K(52)>;
+		};
+
+		slot0_partition: partition@d000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x0000d000 DT_SIZE_K(652)>;
+		};
+
+		slot1_partition: partition@b0000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-1";
+			reg = <0x000b0000 DT_SIZE_K(652)>;
+		};
+
+		internal_zms_partition: partition@153000 {
+			compatible = "zephyr,mapped-partition";
+			label = "internal-zms";
+			reg = <0x00153000 DT_SIZE_K(128)>;
+		};
+
+		storage_partition: partition@173000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x00173000 DT_SIZE_K(40)>;
+		};
+	};
+};
+
+/ {
+	chosen {
+		zephyr,settings-partition = &storage_partition;
+	};
+
+	aliases {
+		/* Use watchdog wdt31 as the application watchdog */
+		watchdog0 = &wdt31;
+	};
+
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&wdt31 {
+	status = "okay";
+};
+
+&pinctrl {
+	spi00_default: spi00_default {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 2, 6)>,
+				<NRF_PSEL(SPIM_MOSI, 2, 8)>,
+				<NRF_PSEL(SPIM_MISO, 2, 9)>;
+		};
+	};
+
+	spi00_sleep: spi00_sleep {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 2, 6)>,
+				<NRF_PSEL(SPIM_MOSI, 2, 8)>,
+				<NRF_PSEL(SPIM_MISO, 2, 9)>;
+			low-power-enable;
+		};
+	};
+};
+
+&spi00 {
+	compatible = "nordic,nrf-spim";
+	status = "okay";
+	cs-gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
+
+	pinctrl-0 = <&spi00_default>;
+	pinctrl-1 = <&spi00_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	pn5190@0 {
+		compatible = "nxp,pn5190";
+		reg = <0>;
+		spi-max-frequency = <DT_FREQ_M(8)>;
+		irq-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	};
+};
+
+&gpio1 {
+	/* Use PORT event rather than GPIOTE IN event, to save power. */
+	sense-edge-mask = <0x00000040>; /* P1.06 */
+};
