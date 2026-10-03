@@ -5,3 +5,4 @@
 #
 
 add_subdirectory_ifdef(CONFIG_NFC_DRIVER_STM stm)
+add_subdirectory_ifdef(CONFIG_NFC_DRIVER_NXP nxp)

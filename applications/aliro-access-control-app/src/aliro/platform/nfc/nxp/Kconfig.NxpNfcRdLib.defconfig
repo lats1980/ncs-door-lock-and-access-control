@@ -1,0 +1,17 @@
+#
+# Copyright (c) 2025 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+config NFC_DRIVER_NXP
+	default n
+
+config NFC_NXP_PAL_I14443P3A
+	default y
+
+config NFC_NXP_PAL_I14443P4A
+	default y
+
+config NFC_NXP_PAL_I14443P4
+	default y

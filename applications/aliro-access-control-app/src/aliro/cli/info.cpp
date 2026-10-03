@@ -16,6 +16,8 @@ const char *GetReaderChipName(void)
 	return "ST25R100";
 #elif defined(CONFIG_ST25R500_DRV)
 	return "ST25R300";
+#elif defined(CONFIG_PN5190_DRV)
+	return "PN5190";
 #else
 	return "Unknown NFC reader driver";
 #endif

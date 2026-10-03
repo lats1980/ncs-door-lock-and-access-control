@@ -1,0 +1,57 @@
+#
+# Copyright (c) 2025 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+rsource "Kconfig.rfal.defconfig"
+
+if NFC_DRIVER_STM
+
+menu "NFC"
+
+config RFAL_NFC_WORKER_INTERVAL_MS
+	int
+	default 10
+
+config RFAL_DISCOVERY_DEV_LIMIT
+	int "Maximum number of devices to discover"
+	range 1 10
+	default 1
+
+config RFAL_DISCOVERY_TOTAL_DURATION_MS
+	int "Total duration of each polling cycle (ms)"
+	range 10 2000
+	default 50
+
+choice RFAL_DISCOVERY_COMP_MODE
+	prompt "RFAL compliance mode"
+	default RFAL_DISCOVERY_COMP_MODE_EMV
+
+config RFAL_DISCOVERY_COMP_MODE_EMV
+	bool "EMVCo compliance"
+
+config RFAL_DISCOVERY_COMP_MODE_ISO
+	bool "ISO/IEC 14443 compliance"
+
+endchoice
+
+config RFAL_DISCOVERY_MAX_BR
+	int "Maximum bitrate for NFC communication"
+	range 0 3
+	default 3
+
+config RFAL_DISCOVERY_GBLEN
+	int "General Bytes length for P2P"
+	range 0 48
+	default 0
+
+module = DOOR_LOCK_RFAL
+module-str = DOOR_LOCK_RFAL
+module-dep = LOG
+module-help = Enables Door Lock NFC RFAL log messages.
+source "$(ZEPHYR_BASE)/subsys/logging/Kconfig.template.log_config"
+
+endmenu
+
+endif # NFC_DRIVER_STM

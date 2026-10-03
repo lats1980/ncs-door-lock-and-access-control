@@ -1,0 +1,166 @@
+#
+# Copyright (c) 2025 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menuconfig NFC_DRIVER_NXP
+	bool "NXP PN series device driver"
+	select EVENTS
+	help
+	  This option enables the NXP PN series device driver for NFC.
+
+if NFC_DRIVER_NXP
+
+rsource "Kconfig.defconfig"
+
+config PN5190_DRV
+	bool "NFC PN5190 driver"
+	default y
+	select SPI
+	help
+	  Use the NXP PN5190 NFC reader HAL. PN5180 is not supported.
+
+config NFC_NXP_HW_TARGET
+	bool "NXP HAL target (listen) mode"
+	help
+	  Enable NXP Reader Library HAL target mode support (listen mode /
+	  card emulation). Corresponds to NXPBUILD__PHHAL_HW_TARGET.
+
+config NFC_NXP_PAL_I14443P3A
+	bool "PAL ISO 14443-3A (Type A Layer 3)"
+	help
+	  Include the NXP Reader Library PAL ISO 14443-3A software component.
+	  Corresponds to NXPBUILD__PHPAL_I14443P3A_SW.
+
+config NFC_NXP_PAL_I14443P3B
+	bool "PAL ISO 14443-3B (Type B Layer 3)"
+	help
+	  Include the NXP Reader Library PAL ISO 14443-3B software component.
+	  Corresponds to NXPBUILD__PHPAL_I14443P3B_SW.
+
+config NFC_NXP_PAL_I14443P4A
+	bool "PAL ISO 14443-4A (Type A Layer 4 activation)"
+	help
+	  Include the NXP Reader Library PAL ISO 14443-4A software component.
+	  Corresponds to NXPBUILD__PHPAL_I14443P4A_SW.
+
+config NFC_NXP_PAL_I14443P4
+	bool "PAL ISO 14443-4 (Layer 4 transport)"
+	help
+	  Include the NXP Reader Library PAL ISO 14443-4 software component.
+	  Corresponds to NXPBUILD__PHPAL_I14443P4_SW.
+
+config NFC_NXP_PAL_I14443P4MC
+	bool "PAL ISO 14443-4 Card Mode (HCE / card emulation)"
+	help
+	  Include the NXP Reader Library PAL ISO 14443-4 card mode software
+	  component and HCE T4T support. Corresponds to
+	  NXPBUILD__PHPAL_I14443P4MC_SW.
+
+config NFC_NXP_PAL_MIFARE
+	bool "PAL MIFARE product"
+	help
+	  Include the NXP Reader Library PAL MIFARE product software component.
+	  Corresponds to NXPBUILD__PHPAL_MIFARE_SW.
+
+config NFC_NXP_PAL_FELICA
+	bool "PAL FeliCa"
+	help
+	  Include the NXP Reader Library PAL FeliCa software component.
+	  Corresponds to NXPBUILD__PHPAL_FELICA_SW.
+
+config NFC_NXP_PAL_SLI15693
+	bool "PAL ISO 15693 (Type V / SLI15693)"
+	help
+	  Include the NXP Reader Library PAL ISO 15693 software component.
+	  Corresponds to NXPBUILD__PHPAL_SLI15693_SW.
+
+config NFC_NXP_PAL_I18000P3M3
+	bool "PAL ISO 18000-3 Mode 3"
+	help
+	  Include the NXP Reader Library PAL ISO 18000-3 Mode 3 software
+	  component. Corresponds to NXPBUILD__PHPAL_I18000P3M3_SW.
+
+config NFC_NXP_PAL_I18092MPI
+	bool "PAL ISO 18092 (P2P Initiator)"
+	help
+	  Include the NXP Reader Library PAL ISO 18092 initiator mode (P2P)
+	  software component. Corresponds to NXPBUILD__PHPAL_I18092MPI_SW.
+
+config NFC_NXP_PAL_I18092MT
+	bool "PAL ISO 18092 (P2P Target)"
+	help
+	  Include the NXP Reader Library PAL ISO 18092 target mode (P2P)
+	  software component. Corresponds to NXPBUILD__PHPAL_I18092MT_SW.
+
+config NFC_NXP_AL_T1T
+	bool "AL Type 1 Tag (T1T / Topaz)"
+	default n
+	help
+	  Include the NXP Reader Library AL Type 1 Tag software component.
+	  Corresponds to NXPBUILD__PHAL_T1T_SW.
+
+config NFC_NXP_AL_TOP
+	bool "AL Tag Operations (phalTop / NDEF)"
+	default n
+	help
+	  Include the NXP Reader Library Tag Operations (Top) software
+	  component for NDEF read/write across tag types. Corresponds to
+	  NXPBUILD__PHAL_TOP_SW.
+
+config NFC_NXP_KEYSTORE
+	bool "KeyStore component (phKeyStore)"
+	default y if NFC_NXP_PAL_MIFARE
+	default n
+	help
+	  Include the NXP Reader Library KeyStore software component.
+	  Required for MIFARE secure authentication. Corresponds to
+	  NXPBUILD__PH_KEYSTORE_SW.
+
+config NFC_NXP_CRYPTOSYM
+	bool "Symmetric crypto component (phCryptoSym)"
+	default y if NFC_NXP_PAL_MIFARE
+	default n
+	depends on NFC_NXP_KEYSTORE
+	help
+	  Include the NXP Reader Library symmetric crypto software
+	  component. Corresponds to NXPBUILD__PH_CRYPTOSYM_SW.
+
+config NFC_NXP_CRYPTORNG
+	bool "Crypto RNG component (phCryptoRng)"
+	default y if NFC_NXP_CRYPTOSYM
+	default n
+	depends on NFC_NXP_CRYPTOSYM
+	help
+	  Include the NXP Reader Library crypto RNG software component.
+	  Corresponds to NXPBUILD__PH_CRYPTORNG_SW.
+
+config NFC_NXP_LLCP
+	bool "LLCP link layer (phlnLlcp)"
+	default y if NFC_NXP_PAL_I18092MPI || NFC_NXP_PAL_I18092MT
+	default n
+	help
+	  Include the NXP Reader Library LLCP software component for
+	  NFC-DEP P2P. Corresponds to NXPBUILD__PHLN_LLCP_SW.
+
+config NFC_NXP_NFCLIB_EMVCO
+	bool "NFC Library EMVCo profile"
+	help
+	  Enable the EMVCo profile of the NXP NFC Library simplified API.
+	  Corresponds to NXPBUILD__PH_NFCLIB_EMVCO.
+
+config NFC_NXP_DEBUG_HELPERS
+	bool "NXP NFC debug print helpers"
+	default y
+	help
+	  Enable shared debug print helpers for NXP NFC samples and
+	  applications.
+
+module = NFC
+module-str = NFC_DRV
+module-dep = LOG
+module-help = Enables driver log messages.
+source "$(ZEPHYR_BASE)/subsys/logging/Kconfig.template.log_config"
+
+endif # NFC_DRIVER_NXP
