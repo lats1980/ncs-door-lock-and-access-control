@@ -15,19 +15,19 @@
 		slot0_partition: partition@d000 {
 			compatible = "zephyr,mapped-partition";
 			label = "image-0";
-			reg = <0x0000d000 DT_SIZE_K(652)>;
+			reg = <0x0000d000 DT_SIZE_K(824)>;
 		};
 
-		slot1_partition: partition@b0000 {
+		slot1_partition: partition@db000 {
 			compatible = "zephyr,mapped-partition";
 			label = "image-1";
-			reg = <0x000b0000 DT_SIZE_K(652)>;
+			reg = <0x000db000 DT_SIZE_K(576)>;
 		};
 
-		internal_zms_partition: partition@153000 {
+		internal_zms_partition: partition@16b000 {
 			compatible = "zephyr,mapped-partition";
 			label = "internal-zms";
-			reg = <0x00153000 DT_SIZE_K(128)>;
+			reg = <0x0016b000 DT_SIZE_K(32)>;
 		};
 
 		storage_partition: partition@173000 {
