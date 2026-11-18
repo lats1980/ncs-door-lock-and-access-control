@@ -53,7 +53,7 @@ K_WORK_DELAYABLE_DEFINE(dl_at_reset_reboot_work, dl_at_reset_reboot_work_fn);
 K_WORK_DEFINE(dl_at_module_ready_work, at_module_ready_work_fn);
 
 #ifndef CONFIG_ALIRO_AT_MODULE_MAX_CUSTOM_CMDS
-#define CONFIG_ALIRO_AT_MODULE_MAX_CUSTOM_CMDS 16
+#define CONFIG_ALIRO_AT_MODULE_MAX_CUSTOM_CMDS 32
 #endif
 
 struct dl_at_cmd_entry {
@@ -72,7 +72,7 @@ static struct dl_time s_dl_time;
 void dl_at_cmd_register(const char *filter, dl_at_cmd_callback_t cb)
 {
 	if (s_custom_cmd_count >= CONFIG_ALIRO_AT_MODULE_MAX_CUSTOM_CMDS) {
-		LOG_ERR("DL_AT_CMD: max custom commands reached");
+		LOG_ERR("DL_AT_CMD: max custom commands reached, cannot register %s", filter);
 		return;
 	}
 	s_custom_cmds[s_custom_cmd_count].filter = filter;
@@ -504,6 +504,113 @@ static int handle_at_readerclear(enum at_parser_cmd_type cmd_type, struct at_par
 	return 0;
 }
 
+#ifdef CONFIG_NCS_ALIRO_BLE_UWB
+DL_AT_CMD(alirobleadvver, "AT+ALIROBLEADVVER", handle_at_alirobleadvver);
+static int handle_at_alirobleadvver(enum at_parser_cmd_type cmd_type, struct at_parser *parser,
+				    uint32_t param_count)
+{
+	char buf[40];
+
+	(void)parser;
+	(void)param_count;
+	LOG_INF("Received ALIROBLEADVVER command");
+
+	if (cmd_type != AT_PARSER_CMD_TYPE_READ) {
+		return -EINVAL;
+	}
+
+	snprintf(buf, sizeof(buf), "\r\n#ALIROBLEADVVER: %u\r\n",
+		 Aliro::AliroStack::GetBleAdvertisingVersion());
+	return at_send_str(buf);
+}
+#endif // CONFIG_NCS_ALIRO_BLE_UWB
+
+#ifdef CONFIG_DOOR_LOCK_ALIRO_READER_STORAGE_GROUP_RESOLVING_KEY_SUPPORT
+DL_AT_CMD(readergroupreskey, "AT+READERGROUPRESKEY", handle_at_readergroupreskey);
+static int handle_at_readergroupreskey(enum at_parser_cmd_type cmd_type, struct at_parser *parser,
+				       uint32_t param_count)
+{
+	char buf[DL_AT_CMD_RESP_BUF_SIZE];
+
+	LOG_INF("Received READERGROUPRESKEY command");
+
+	if (cmd_type == AT_PARSER_CMD_TYPE_SET) {
+		uint16_t op;
+		int ret = at_parser_uint16_get(parser, 1, &op);
+		if (ret) {
+			return ret;
+		}
+		if (op == 0) {
+			if (DoorLock::ReaderStorage::ClearGroupResolvingKey() != ALIRO_NO_ERROR) {
+				LOG_ERR("Failed to clear group resolving key");
+				return -EIO;
+			}
+			return 0;
+		}
+		if (op != 1) {
+			LOG_ERR("Invalid operation for READERGROUPRESKEY: %d", op);
+			return -EINVAL;
+		}
+		if (param_count < 3) {
+			LOG_ERR("Missing key for READERGROUPRESKEY");
+			return -EINVAL;
+		}
+
+		char key_str[READER_GROUP_RESOLVING_KEY_SIZE * 2 + 1];
+		size_t str_len = sizeof(key_str);
+		ret = at_parser_string_get(parser, 2, key_str, &str_len);
+		if (ret) {
+			LOG_ERR("Failed to get READERGROUPRESKEY parameter");
+			return ret;
+		}
+		if (str_len != READER_GROUP_RESOLVING_KEY_SIZE * 2) {
+			LOG_ERR("READERGROUPRESKEY must be %d hex chars, got %d",
+				READER_GROUP_RESOLVING_KEY_SIZE * 2, (int)str_len);
+			return -EINVAL;
+		}
+
+		Aliro::CryptoTypes::GroupResolvingKey key{};
+		for (size_t i = 0; i < key.size(); i++) {
+			unsigned int byte;
+			if (sscanf(&key_str[i * 2], "%2x", &byte) != 1) {
+				LOG_ERR("Invalid hex in READERGROUPRESKEY");
+				return -EINVAL;
+			}
+			key[i] = (uint8_t)byte;
+		}
+		if (DoorLock::ReaderStorage::SetGroupResolvingKey(key) != ALIRO_NO_ERROR) {
+			LOG_ERR("Failed to set group resolving key");
+			return -EIO;
+		}
+		LOG_INF("Group resolving key set successfully");
+		return 0;
+	}
+
+	if (cmd_type != AT_PARSER_CMD_TYPE_READ) {
+		return -EINVAL;
+	}
+
+	if (!DoorLock::ReaderStorage::IsGroupResolvingKeySet()) {
+		snprintf(buf, sizeof(buf), "\r\n#READERGROUPRESKEY: 0\r\n");
+		return at_send_str(buf);
+	}
+
+	Aliro::CryptoTypes::GroupResolvingKey key{};
+	if (DoorLock::ReaderStorage::GetGroupResolvingKey(key) != ALIRO_NO_ERROR) {
+		LOG_ERR("Failed to get group resolving key");
+		snprintf(buf, sizeof(buf), "\r\n#READERGROUPRESKEY: 1,ERROR\r\n");
+		return at_send_str(buf);
+	}
+
+	int len = snprintf(buf, sizeof(buf), "\r\n#READERGROUPRESKEY: 1,\"");
+	for (size_t i = 0; i < key.size() && len < (int)sizeof(buf) - 4; i++) {
+		len += snprintf(buf + len, (size_t)(sizeof(buf) - len), "%02x", key[i]);
+	}
+	snprintf(buf + len, (size_t)(sizeof(buf) - len), "\"\r\n");
+	return at_send_str(buf);
+}
+#endif // CONFIG_DOOR_LOCK_ALIRO_READER_STORAGE_GROUP_RESOLVING_KEY_SUPPORT
+
 DL_AT_CMD(alirostart, "AT+ALIROSTART", handle_at_alirostart);
 static int handle_at_alirostart(enum at_parser_cmd_type cmd_type, struct at_parser *parser,
 				uint32_t param_count)
@@ -597,6 +704,37 @@ static int handle_at_aliroexpeditedver(enum at_parser_cmd_type cmd_type, struct 
 
 	return -EINVAL;
 }
+
+#ifdef CONFIG_NCS_ALIRO_BLE_UWB
+DL_AT_CMD(alirobleuwbver, "AT+ALIROBLEUWBVER", handle_at_alirobleuwbver);
+static int handle_at_alirobleuwbver(enum at_parser_cmd_type cmd_type, struct at_parser *parser,
+				    uint32_t param_count)
+{
+	LOG_INF("Received ALIROBLEUWBVER command");
+	(void)parser;
+	(void)param_count;
+
+	if (cmd_type == AT_PARSER_CMD_TYPE_READ) {
+		size_t versionCount{};
+		const auto *versions = Aliro::AliroStack::Instance().GetBleUwbProtocolVersions(versionCount);
+		/* "\r\n#ALIROBLEUWBVER:" (19) + versionCount * 5 (e.g. "0001,") + "\r\n\0" */
+		char buf[19 + (versionCount * 5) + 4];
+		int len;
+
+		LOG_INF("BLE/UWB Supported Protocol Versions count: %d", (int)versionCount);
+		len = snprintf(buf, sizeof(buf), "\r\n#ALIROBLEUWBVER:");
+		for (size_t i = 0; i < versionCount && len < (int)sizeof(buf) - 6; i++) {
+			len += snprintf(buf + len, (size_t)(sizeof(buf) - len), "%s%04x",
+				       i ? "," : "", (unsigned int)versions[i]);
+		}
+		snprintf(buf + len, (size_t)(sizeof(buf) - len), "\r\n");
+		at_send_str(buf);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+#endif // CONFIG_NCS_ALIRO_BLE_UWB
 
 /* Access Manager Credential Manager */
 DL_AT_CMD(amcmgr, "AT+AMCMGR", handle_at_amcmgr);

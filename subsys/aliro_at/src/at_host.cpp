@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <errno.h>
+#include <stdlib.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <stdio.h>
@@ -394,6 +395,43 @@ bool at_reader_clear(enum at_reader_clear_type type)
 	return true;
 }
 
+int at_reader_get_ble_adv_version(uint8_t *version)
+{
+	char buf[DL_AT_CMD_RESP_BUF_SIZE];
+	const char *prefix = "#ALIROBLEADVVER: ";
+	const char *p;
+	char *end;
+	unsigned long val;
+	int ret;
+
+	if (!version) {
+		return -EINVAL;
+	}
+
+	ret = at_host_send_cmd_with_rsp(DL_ALIROBLEADVVER_CMD, DL_ALIROBLEADVVER_TIMEOUT,
+					buf, sizeof(buf));
+	if (ret != AT_CMD_OK) {
+		LOG_WRN("AT+ALIROBLEADVVER? failed or timeout: %d", ret);
+		return -EIO;
+	}
+
+	p = strstr(buf, prefix);
+	if (!p) {
+		LOG_WRN("AT+ALIROBLEADVVER? response missing prefix");
+		return -EBADMSG;
+	}
+	p += strlen(prefix);
+
+	val = strtoul(p, &end, 10);
+	if (end == p || val > UINT8_MAX) {
+		LOG_ERR("Invalid ALIROBLEADVVER value");
+		return -EBADMSG;
+	}
+
+	*version = (uint8_t)val;
+	return 0;
+}
+
 bool at_reader_clear_storage(bool reinitializeStorage)
 {
 	int ret;
@@ -423,7 +461,15 @@ bool at_reader_private_key_set(const uint8_t *private_key, size_t key_size)
 	char private_key_str[READER_KEY_SIZE * 2 + 1];
 	int ret;
 
-	if (!private_key || key_size != READER_KEY_SIZE) {
+	if (!private_key) {
+		ret = at_host_send_cmd("AT+READERKEY=0\r\n", DL_READERKEY_TIMEOUT);
+		if (ret != AT_CMD_OK) {
+			LOG_WRN("AT+READERKEY=0 failed or timeout: %d", ret);
+			return false;
+		}
+		return true;
+	}
+	if (key_size != READER_KEY_SIZE) {
 		return false;
 	}
 	for (size_t i = 0; i < key_size; i++) {
@@ -576,10 +622,87 @@ int at_reader_identifier_get(uint8_t *identifier_out, size_t identifier_size)
 	return 0;
 }
 
-int at_aliro_expedited_version_get(uint8_t *version_out, size_t version_out_max, size_t *version_count)
+bool at_reader_group_resolving_key_set(const uint8_t *key, size_t key_size)
+{
+	char cmd_buf[DL_AT_LINE_BUF_SIZE];
+	char key_str[READER_GROUP_RESOLVING_KEY_SIZE * 2 + 1];
+	int ret;
+
+	if (!key || key_size != READER_GROUP_RESOLVING_KEY_SIZE) {
+		return false;
+	}
+	for (size_t i = 0; i < key_size; i++) {
+		sprintf(&key_str[i * 2], "%02x", key[i]);
+	}
+
+	ret = snprintf(cmd_buf, sizeof(cmd_buf), "AT+READERGROUPRESKEY=1,\"%s\"\r\n", key_str);
+	if (ret < 0 || (size_t)ret >= sizeof(cmd_buf)) {
+		LOG_ERR("Failed to format AT+READERGROUPRESKEY command");
+		return false;
+	}
+
+	ret = at_host_send_cmd(cmd_buf, DL_READERGROUPRESKEY_TIMEOUT);
+	if (ret != AT_CMD_OK) {
+		LOG_WRN("AT+READERGROUPRESKEY=1 failed or timeout: %d", ret);
+		return false;
+	}
+	return true;
+}
+
+int at_reader_group_resolving_key_get(uint8_t *key_out, size_t key_size)
 {
 	char buf[DL_AT_CMD_RESP_BUF_SIZE];
-	const char *prefix = "#ALIROEXPEDITEDVER:";
+	const char *prefix = "#READERGROUPRESKEY:";
+	const size_t prefix_len = strlen(prefix);
+	int ret;
+
+	if (!key_out || key_size != READER_GROUP_RESOLVING_KEY_SIZE) {
+		return -EINVAL;
+	}
+
+	ret = at_host_send_cmd_with_rsp(DL_READERGROUPRESKEY_CMD, DL_READERGROUPRESKEY_TIMEOUT,
+					buf, sizeof(buf));
+	if (ret != AT_CMD_OK) {
+		LOG_WRN("AT+READERGROUPRESKEY? failed or timeout: %d", ret);
+		return -EAGAIN;
+	}
+
+	const char *p = strstr(buf, prefix);
+	if (!p) {
+		LOG_WRN("AT+READERGROUPRESKEY? response missing prefix");
+		return -EBADMSG;
+	}
+	p += prefix_len;
+	while (*p == ' ') {
+		p++;
+	}
+
+	if (*p == '0') {
+		return -ENOENT;
+	}
+	if (strncmp(p, "1,\"", 3) != 0) {
+		LOG_WRN("AT+READERGROUPRESKEY? key not available");
+		return -EBADMSG;
+	}
+	p += 3;
+
+	for (size_t i = 0; i < key_size; i++) {
+		int hi = hex_char_to_nibble(p[i * 2]);
+		int lo = hex_char_to_nibble(hi < 0 ? '\0' : p[i * 2 + 1]);
+		if (hi < 0 || lo < 0) {
+			LOG_ERR("Invalid hex in READERGROUPRESKEY response");
+			return -EINVAL;
+		}
+		key_out[i] = (uint8_t)((hi << 4) | lo);
+	}
+
+	return 0;
+}
+
+static int at_aliro_version_list_get(const char *cmd, int timeout, const char *prefix,
+				     uint8_t *version_out, size_t version_out_max, size_t *version_count)
+{
+	char buf[DL_AT_CMD_RESP_BUF_SIZE];
 	const size_t prefix_len = strlen(prefix);
 	int ret;
 
@@ -587,17 +710,15 @@ int at_aliro_expedited_version_get(uint8_t *version_out, size_t version_out_max,
 		return -EINVAL;
 	}
 
-	ret = at_host_send_cmd_with_rsp(DL_ALIRO_EXPEDITED_VERSION_CMD,
-					  DL_ALIRO_EXPEDITED_VERSION_TIMEOUT,
-					  buf, sizeof(buf));
+	ret = at_host_send_cmd_with_rsp(cmd, timeout, buf, sizeof(buf));
 	if (ret != AT_CMD_OK) {
-		LOG_WRN("AT+ALIROEXPEDITEDVER? failed or timeout: %d", ret);
+		LOG_WRN("%s failed or timeout: %d", cmd, ret);
 		return -EAGAIN;
 	}
 
 	const char *p = strstr(buf, prefix);
 	if (!p) {
-		LOG_WRN("AT+ALIROEXPEDITEDVER? response missing prefix");
+		LOG_WRN("%s response missing prefix", cmd);
 		return -ENODATA;
 	}
 
@@ -614,7 +735,7 @@ int at_aliro_expedited_version_get(uint8_t *version_out, size_t version_out_max,
 		int n;
 
 		if (sscanf(p, "%4x%n", &val, &n) != 1 || val > 0xFFFF) {
-			LOG_WRN("Invalid hex in ALIROEXPEDITEDVER response");
+			LOG_WRN("Invalid hex in %s response", prefix);
 			return -EINVAL;
 		}
 		version_out[(*version_count) * 2]     = (uint8_t)(val >> 8);
@@ -627,6 +748,20 @@ int at_aliro_expedited_version_get(uint8_t *version_out, size_t version_out_max,
 	}
 
 	return 0;
+}
+
+int at_aliro_expedited_version_get(uint8_t *version_out, size_t version_out_max, size_t *version_count)
+{
+	return at_aliro_version_list_get(DL_ALIRO_EXPEDITED_VERSION_CMD, DL_ALIRO_EXPEDITED_VERSION_TIMEOUT,
+					 "#ALIROEXPEDITEDVER:", version_out, version_out_max,
+					 version_count);
+}
+
+int at_aliro_ble_uwb_version_get(uint8_t *version_out, size_t version_out_max, size_t *version_count)
+{
+	return at_aliro_version_list_get(DL_ALIRO_BLEUWB_VERSION_CMD, DL_ALIRO_BLEUWB_VERSION_TIMEOUT,
+					 "#ALIROBLEUWBVER:", version_out, version_out_max,
+					 version_count);
 }
 
 bool at_amcmgr_add_public_key(uint16_t index, uint8_t type, const uint8_t *public_key)

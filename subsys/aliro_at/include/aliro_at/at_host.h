@@ -138,6 +138,16 @@ enum at_reader_clear_type {
 bool at_reader_clear(enum at_reader_clear_type type);
 
 /**
+ * @brief Get the Aliro BLE advertising version from the device.
+ *
+ * Sends AT+ALIROBLEADVVER? and parses "#ALIROBLEADVVER: <version>".
+ *
+ * @param[out] version BLE advertising version.
+ * @return 0 on success, negative errno otherwise.
+ */
+int at_reader_get_ble_adv_version(uint8_t *version);
+
+/**
  * @brief Clear the reader's Aliro storage, optionally reinitializing it.
  * 
  * Sends AT+ALIROCLEARSTORAGE=1 to clear storage and reinitialize, or AT+ALIROCLEARSTORAGE=0 to clear
@@ -150,10 +160,11 @@ bool at_reader_clear_storage(bool reinitializeStorage);
 /**
  * @brief Set the reader private key on the device.
  *
- * Sends AT+READERKEY=1 with the provided private key.
+ * Sends AT+READERKEY=1 with the provided private key. If private_key is nullptr,
+ * sends AT+READERKEY=0 instead to clear the key.
  *
- * @param private_key  Pointer to the private key data.
- * @param key_size     Size of the private key data.
+ * @param private_key  Pointer to the private key data, or nullptr to clear the key.
+ * @param key_size     Size of the private key data (must be READER_KEY_SIZE unless clearing).
  * @return true on success, false otherwise (timeout, or error).
  */
 bool at_reader_private_key_set(const uint8_t *private_key, size_t key_size);
@@ -193,6 +204,28 @@ int at_reader_identifier_create(const uint8_t *identifier, size_t identifier_siz
 int at_reader_identifier_get(uint8_t *identifier_out, size_t identifier_size);
 
 /**
+ * @brief Set the reader's group resolving key via AT+READERGROUPRESKEY=1,"<hex>"
+ *
+ * Use at_reader_clear(AT_READER_CLEAR_GROUP_RESOLVING_KEY) to remove it.
+ *
+ * @param key       Key bytes.
+ * @param key_size  Must be READER_GROUP_RESOLVING_KEY_SIZE (16 bytes).
+ * @return true on success, false otherwise (invalid argument, timeout or error).
+ */
+bool at_reader_group_resolving_key_set(const uint8_t *key, size_t key_size);
+
+/**
+ * @brief Get the reader's group resolving key via AT+READERGROUPRESKEY?
+ *
+ * Parses "#READERGROUPRESKEY: 1,\"<32 hex chars>\"" from the response.
+ *
+ * @param key_out   Buffer receiving the key.
+ * @param key_size  Must be READER_GROUP_RESOLVING_KEY_SIZE (16 bytes).
+ * @return 0 on success, -ENOENT if the key is not set, other negative errno on failure.
+ */
+int at_reader_group_resolving_key_get(uint8_t *key_out, size_t key_size);
+
+/**
  * @brief Get the Aliro expedited version list via AT+ALIROEXPEDITEDVER?
  *
  * Sends AT+ALIROEXPEDITEDVER? and parses the comma-separated version list from the response.
@@ -204,6 +237,18 @@ int at_reader_identifier_get(uint8_t *identifier_out, size_t identifier_size);
  * @return 0 on success, negative errno on failure (timeout, parse error, or version not set).
  */
 int at_aliro_expedited_version_get(uint8_t *version_out, size_t version_out_max, size_t *version_count);
+
+/**
+ * @brief Get the Aliro BLE/UWB protocol version list via AT+ALIROBLEUWBVER?
+ *
+ * Same format as at_aliro_expedited_version_get(); response is "#ALIROBLEUWBVER:<hex>,<hex>,...".
+ *
+ * @param version_out       Buffer to receive the version data (2 bytes per version, big-endian).
+ * @param version_out_max   Maximum bytes to write (must be multiple of 2).
+ * @param version_count     Pointer to store the number of versions received.
+ * @return 0 on success, negative errno on failure.
+ */
+int at_aliro_ble_uwb_version_get(uint8_t *version_out, size_t version_out_max, size_t *version_count);
 
 /**
  * @brief Add a public key to the access manager via AT+AMCMGR=1 (DL_AMCMGR_ADD_CMD).

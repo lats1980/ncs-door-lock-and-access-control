@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
@@ -38,6 +39,28 @@ K_MSGQ_DEFINE(rx_event_queue, sizeof(struct rx_event_t),
 static void rx_process(struct k_work *work);
 static K_WORK_DEFINE(rx_process_work, rx_process);
 
+/*
+ * Dedicated workqueue for AT RX processing. Handlers may be awaited by other threads
+ * (e.g. AT+TIME is awaited by dl_time_get()), and those waiters may themselves run on the
+ * system workqueue (e.g. BLE advertising updates). Processing RX on the system workqueue
+ * would then deadlock until the waiter times out.
+ */
+static struct k_work_q rx_work_q;
+static K_THREAD_STACK_DEFINE(rx_work_q_stack, CONFIG_ALIRO_AT_RX_WORKQUEUE_STACK_SIZE);
+
+static int rx_work_q_init(void)
+{
+	static const struct k_work_queue_config cfg = {
+		.name = "at_rxworkq",
+	};
+
+	k_work_queue_start(&rx_work_q, rx_work_q_stack, K_THREAD_STACK_SIZEOF(rx_work_q_stack),
+			   CONFIG_ALIRO_AT_RX_WORKQUEUE_PRIORITY, &cfg);
+	return 0;
+}
+
+SYS_INIT(rx_work_q_init, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
+
 static void rx_process(struct k_work *work)
 {
 	struct rx_event_t rx_evt;
@@ -65,6 +88,14 @@ static void rx_process(struct k_work *work)
 		if (stop_at_receive) {
 			break;
 		}
+	}
+
+	/*
+	 * Events may have been queued while this work item was pending; submissions get coalesced,
+	 * so reschedule if anything is left, otherwise it would only be handled on the next RX.
+	 */
+	if (k_msgq_num_used_get(&rx_event_queue) > 0) {
+		k_work_submit_to_queue(&rx_work_q, &rx_process_work);
 	}
 }
 
@@ -112,7 +143,7 @@ int at_receive(const uint8_t *data, size_t len)
 		k_free(buf);
 		return -ENOMEM;
 	}
-	k_work_submit(&rx_process_work);
+	k_work_submit_to_queue(&rx_work_q, &rx_process_work);
 
 	return 0;
 }

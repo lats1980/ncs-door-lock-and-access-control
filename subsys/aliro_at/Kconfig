@@ -18,6 +18,12 @@ config ALIRO_AT_HOST
 	help
 	  Enables the AT Host on the Matter/host MCU.
 
+config ALIRO_AT_HOST_UWB
+	bool "Door lock AT Host UWB support"
+	depends on ALIRO_AT_HOST
+	help
+	  Enables the UWB support in the AT Host on the Matter/host MCU.
+
 config ALIRO_AT_TRANSPORT_SERIAL
 	bool "AT serial transport"
 	default y
@@ -49,6 +55,18 @@ config ALIRO_AT_COMMAND_BUF_SIZE
 	help
 	  Size of each UART TX and RX buffer in bytes.
 
+config ALIRO_AT_RX_WORKQUEUE_STACK_SIZE
+	int "AT RX workqueue stack size"
+	default 4096
+	help
+	  Stack size of the dedicated workqueue that runs AT command handlers.
+
+config ALIRO_AT_RX_WORKQUEUE_PRIORITY
+	int "AT RX workqueue priority"
+	default 5
+	help
+	  Thread priority of the dedicated AT RX workqueue.
+
 config ALIRO_AT_RX_EVENT_QUEUE_SIZE
 	int "RX event message queue size"
 	default 8
@@ -76,7 +94,7 @@ config ALIRO_AT_TRANSPORT_STATE_INDICATOR
 
 config ALIRO_AT_MODULE_MAX_CUSTOM_CMDS
 	int "Maximum number of custom AT commands"
-	default 16
+	default 32
 	depends on ALIRO_AT_MODULE
 	help
 	  Maximum number of custom AT commands registered via DL_AT_CMD.

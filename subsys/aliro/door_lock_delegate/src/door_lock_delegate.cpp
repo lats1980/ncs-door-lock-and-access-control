@@ -42,7 +42,7 @@ CHIP_ERROR EncodeProtocolVersion(size_t index, chip::MutableByteSpan &protocolVe
 {
 	VerifyOrReturnError(versions != nullptr, CHIP_ERROR_INVALID_ARGUMENT, LOG_ERR("Versions list is nullptr"));
 
-	if (index > versionCount - 1) {
+	if (index >= versionCount) {
 		protocolVersion.reduce_size(0);
 		return CHIP_ERROR_PROVIDER_LIST_EXHAUSTED;
 	}
@@ -188,9 +188,17 @@ CHIP_ERROR DoorLockDelegate::GetAliroGroupResolvingKey(chip::MutableByteSpan &gr
 	VerifyOrReturnError(groupResolvingKey.size() == kAliroGroupResolvingKeySize, CHIP_ERROR_INVALID_ARGUMENT);
 
 #ifdef CONFIG_DOOR_LOCK_ALIRO_DOOR_LOCK_DELEGATE_BLE_UWB_SUPPORT
-
 #ifdef CONFIG_ALIRO_AT_HOST
-	groupResolvingKey.reduce_size(0);
+	const int ret = at_reader_group_resolving_key_get(groupResolvingKey.data(), groupResolvingKey.size());
+	if (ret == -ENOENT) {
+		// Not set. We have to return CHIP_NO_ERROR here.
+		groupResolvingKey.reduce_size(0);
+		return CHIP_NO_ERROR;
+	}
+	if (ret != 0) {
+		groupResolvingKey.reduce_size(0);
+		return CHIP_ERROR_INTERNAL;
+	}
 	return CHIP_NO_ERROR;
 #else
 	if (!DoorLock::ReaderStorage::IsGroupResolvingKeySet()) {
@@ -226,8 +234,16 @@ CHIP_ERROR DoorLockDelegate::GetAliroSupportedBLEUWBProtocolVersionAtIndex(size_
 #if CONFIG_DOOR_LOCK_ALIRO_DOOR_LOCK_DELEGATE_BLE_UWB_SUPPORT
 
 #ifdef CONFIG_ALIRO_AT_HOST
-	protocolVersion.reduce_size(0);
-	return CHIP_ERROR_NOT_IMPLEMENTED;
+	uint8_t versions_buf[64];
+	size_t version_count = 0;
+
+	if (at_aliro_ble_uwb_version_get(versions_buf, sizeof(versions_buf), &version_count) != 0) {
+		protocolVersion.reduce_size(0);
+		return CHIP_ERROR_INTERNAL;
+	}
+	return EncodeProtocolVersion(index, protocolVersion,
+				     reinterpret_cast<const Aliro::ProtocolVersion *>(versions_buf),
+				     version_count);
 #else
 	size_t versionCount{};
 	const auto *versions = Aliro::AliroStack::Instance().GetBleUwbProtocolVersions(versionCount);
@@ -250,7 +266,12 @@ uint8_t DoorLockDelegate::GetAliroBLEAdvertisingVersion()
 #ifdef CONFIG_DOOR_LOCK_ALIRO_DOOR_LOCK_DELEGATE_BLE_UWB_SUPPORT
 
 #ifdef CONFIG_ALIRO_AT_HOST
-	return 0;
+	uint8_t version = 0;
+	if (at_reader_get_ble_adv_version(&version) != 0) {
+		LOG_ERR("Failed to get BLE advertising version from reader");
+		return 0;
+	}
+	return version;
 #else
 	return Aliro::AliroStack::Instance().GetBleAdvertisingVersion();
 #endif
@@ -291,26 +312,40 @@ CHIP_ERROR DoorLockDelegate::SetAliroReaderConfig(const chip::ByteSpan &signingK
 	VerifyOrReturnError(groupResolvingKey.HasValue() &&
 				    groupResolvingKey.Value().size() == kAliroGroupResolvingKeySize,
 			    CHIP_ERROR_INVALID_ARGUMENT);
-	/* Group resolving key is provisioned on the reader MCU via AT (not implemented yet). */
 #endif
 	Aliro::Identifier identifier{};
 	std::copy_n(groupIdentifier.data(), kAliroReaderGroupIdentifierSize, identifier.data());
 	const psa_status_t randomStatus = psa_generate_random(
 		identifier.data() + kAliroReaderGroupIdentifierSize, kAliroReaderGroupSubIdentifierSize);
 	VerifyOrReturnError(randomStatus == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+	// Any failure below leaves the reader partially provisioned, so roll back everything.
+	const auto rollback = []() {
+		if (!at_reader_clear(AT_READER_CLEAR_ALL)) {
+			LOG_ERR("Failed to roll back reader configuration");
+		}
+	};
+
 	if (at_reader_identifier_create(identifier.data(), identifier.size()) != 0) {
 		LOG_ERR("Failed to create reader identifier");
+		rollback();
 		return CHIP_ERROR_INTERNAL;
 	}
 	if (!at_reader_private_key_set(signingKey.data(), signingKey.size())) {
 		LOG_ERR("Failed to set reader private key");
+		rollback();
 		return CHIP_ERROR_INTERNAL;
 	}
+#ifdef CONFIG_DOOR_LOCK_ALIRO_DOOR_LOCK_DELEGATE_BLE_UWB_SUPPORT
+	if (!at_reader_group_resolving_key_set(groupResolvingKey.Value().data(),
+					       groupResolvingKey.Value().size())) {
+		LOG_ERR("Failed to set reader group resolving key");
+		rollback();
+		return CHIP_ERROR_INTERNAL;
+	}
+#endif
 	if (!at_reader_start()) {
 		LOG_ERR("Failed to start reader");
-		if (!at_reader_private_key_set(nullptr, 0)) {
-			LOG_ERR("Failed to clear reader private key after reader start failure");
-		}
+		rollback();
 		return CHIP_ERROR_INTERNAL;
 	}
 #else
