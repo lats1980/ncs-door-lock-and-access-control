@@ -1,0 +1,18 @@
+Fix wrong buffer pointer passed to parseCapabilityCCCParams
+
+parseCapabilityInfo() passes &capsInfoData[index] together with &index, but
+parseCapabilityCCCParams() indexes the buffer with *index itself. The offset
+is therefore applied twice and the CCC capability values are read from the
+wrong position (possibly beyond the response buffer). Pass the base pointer.
+
+--- a/libs/uwb-iot/uwb_api/Api/UwbApi_Internal.c	2026-11-10 14:02:05.353405786 +0800
++++ b/libs/uwb-iot/uwb_api/Api/UwbApi_Internal.c	2026-11-10 14:02:05.358405713 +0800
+@@ -2839,7 +2839,7 @@
+         if ((extParamId & EXTENDED_PARAM_ID_MASK) == CCC_INFO_ID) {
+             length = capsInfoData[index++];
+ #if UWBFTR_CCC
+-            if (parseCapabilityCCCParams(pDevCap, extParamId, &index, length, &capsInfoData[index]) == FALSE) {
++            if (parseCapabilityCCCParams(pDevCap, extParamId, &index, length, capsInfoData) == FALSE) {
+                 NXPLOG_UWBAPI_W("Error Parsing CCC Params.");
+                 status = FALSE;
+             }

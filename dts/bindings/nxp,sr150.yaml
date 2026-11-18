@@ -1,0 +1,33 @@
+description: NXP SR150 UWB Transceiver
+
+compatible: "nxp,sr150"
+
+include: [spi-device.yaml]
+
+properties:
+  spi-cs-setup-delay-ns:
+    type: int
+    description: CS setup delay in nanoseconds
+
+  spi-cs-hold-delay-ns:
+    type: int
+    description: CS hold delay in nanoseconds
+
+  irq-gpios:
+    type: phandle-array
+    required: true
+    description: UWB IRQ interrupt pin
+
+  wakeup-gpios:
+    type: phandle-array
+    required: true
+    description: UWB WAKEUP pin
+
+  en-gpios:
+    type: phandle-array
+    required: true
+    description: UWB chip enable pin
+
+  en-uwb-power-gpios:
+    type: phandle-array
+    description: UWB power enable pin

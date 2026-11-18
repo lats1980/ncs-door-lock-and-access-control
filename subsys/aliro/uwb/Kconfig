@@ -27,6 +27,14 @@ config DOOR_LOCK_ALIRO_UWB_IMPL_STUB
 	  directory. All operations return -ENOSYS. Use it as a starting point
 	  for integrating a real UWB backend.
 
+config DOOR_LOCK_ALIRO_UWB_IMPL_SR150
+	bool "NXP SR150 implementation"
+	select UWB_NXP
+	help
+	  Build the NXP SR150 implementation from the sr150_impl directory. It
+	  uses the NXP UWB IoT API (UwbApi) from drivers/uwb/nxp (UWB_NXP,
+	  selected automatically) to run Aliro ranging sessions on the SR150.
+
 config DOOR_LOCK_ALIRO_UWB_IMPL_EXTERNAL
 	bool "Out-of-tree implementation"
 	help

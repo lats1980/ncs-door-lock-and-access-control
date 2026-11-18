@@ -1,0 +1,131 @@
+Enable Zephyr as an OS flavour of the NXP UWB IoT middleware (v04.08.01)
+
+Adds UWBIOT_OS_ZEPHYR next to UWBIOT_OS_FREERTOS / UWBIOT_OS_NATIVE,
+enables the CCC (Aliro) feature, which is off in the stock configuration, and
+guards __DEPRECATED, which the Zephyr C library headers define as well.
+The Zephyr OSAL itself lives in nxp_uwb_platform/osal/.
+
+Applied by CMake to the staged copy of the NXP "libs" tree, never to the
+user's extracted package.
+
+--- a/libs/halimpl/inc/uwb_iot_ftr_default.h
++++ b/libs/halimpl/inc/uwb_iot_ftr_default.h
+@@ -216,14 +216,18 @@
+  */
+ 
+ /** running with FreeRTOS Implementation. Direct or Simulation. */
+-#define UWBIOT_OS_FREERTOS 1
++#define UWBIOT_OS_FREERTOS 0
+ 
+ /** Native Implementation. Using pthread */
+ #define UWBIOT_OS_NATIVE 0
+ 
++/** Zephyr Implementation */
++#define UWBIOT_OS_ZEPHYR 1
++
+ #if (( 0                             \
+     + UWBIOT_OS_FREERTOS             \
+     + UWBIOT_OS_NATIVE               \
++    + UWBIOT_OS_ZEPHYR               \
+     ) > 1)
+ #        error "Enable only one of 'UWBIOT_OS'"
+ #endif
+@@ -232,6 +236,7 @@
+ #if (( 0                             \
+     + UWBIOT_OS_FREERTOS             \
+     + UWBIOT_OS_NATIVE               \
++    + UWBIOT_OS_ZEPHYR               \
+     ) == 0)
+ #        error "Enable at-least one of 'UWBIOT_OS'"
+ #endif
+@@ -350,7 +355,7 @@
+  *
+  * Only for SR150
+  */
+-#define UWBFTR_CCC 0
++#define UWBFTR_CCC 1
+ 
+ 
+ /** @define UWBFTR_Radar
+--- a/libs/halimpl/inc/phOsalUwb.h
++++ b/libs/halimpl/inc/phOsalUwb.h
+@@ -35,6 +35,8 @@
+ #elif UWBIOT_OS_NATIVE
+ #include <pthread.h>
+ #include <semaphore.h>
++#elif UWBIOT_OS_ZEPHYR
++#include <zephyr/kernel.h>
+ #endif
+ 
+ /*
+@@ -65,6 +67,11 @@
+ #define OSAL_TASK_RETURN_VALUE NULL
+ #define UWBOSAL_TASK_HANDLE    pthread_t
+ 
++#elif UWBIOT_OS_ZEPHYR
++#define OSAL_TASK_RETURN_TYPE void
++#define OSAL_TASK_RETURN_VALUE
++#define UWBOSAL_TASK_HANDLE    k_tid_t
++
+ #else
+ #error "Invalid OS Type"
+ #endif
+@@ -150,6 +157,8 @@
+ typedef void (*pphOsalUwb_ThreadFunction_t)(void *);
+ #elif UWBIOT_OS_NATIVE
+ typedef void *(*pphOsalUwb_ThreadFunction_t)(void *);
++#elif UWBIOT_OS_ZEPHYR
++typedef void (*pphOsalUwb_ThreadFunction_t)(void *);
+ #else
+ #error "Invalid OS Type"
+ #endif
+--- a/libs/halimpl/inc/phOsalUwb_Internal.h
++++ b/libs/halimpl/inc/phOsalUwb_Internal.h
+@@ -94,6 +94,8 @@
+ /* Max task name length for freeRTOS */
+ #if UWBIOT_OS_NATIVE
+ #define configMAX_TASK_NAME_LEN 20
++#elif UWBIOT_OS_ZEPHYR
++#define configMAX_TASK_NAME_LEN 20
+ #endif
+ #define TASK_NAME_MAX_LENGTH configMAX_TASK_NAME_LEN
+ 
+@@ -134,6 +136,25 @@
+     sem_t ObjectHandle;       /**<Handle of the semaphore object */
+ } phOsalUwb_sOsalSemaphore_t; /**< Variable for Structure Instance*/
+ 
++#elif UWBIOT_OS_ZEPHYR
++
++typedef struct phOsalUwb_sOsalThreadHandle
++{
++    pphOsalUwb_ThreadFunction_t ThreadFunction;
++    void *Params;
++    k_tid_t ObjectHandle;
++} phOsalUwb_sOsalThreadHandle_t;
++
++typedef struct phOsalUwb_sOsalMutex
++{
++    struct k_mutex *ObjectHandle;
++} phOsalUwb_sOsalMutex_t;
++
++typedef struct phOsalUwb_sOsalSemaphore
++{
++    struct k_sem *ObjectHandle;
++} phOsalUwb_sOsalSemaphore_t;
++
+ #else
+ 
+ /**
+--- a/libs/uwb-iot/uwb_api/Api/UwbApi_Types.h
++++ b/libs/uwb-iot/uwb_api/Api/UwbApi_Types.h
+@@ -340,7 +340,10 @@
+ /*
+  *  \brief Deprecated related macros.
+  */
++/* Already defined by the Zephyr C library headers */
++#ifndef __DEPRECATED
+ #define __DEPRECATED 1
++#endif
+ 
+ /** @} */ /* @addtogroup uwb_const */
+ 

@@ -1,0 +1,99 @@
+#
+# Copyright (c) 2026 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menuconfig UWB_NXP
+	bool "NXP SR150 UWB driver (UWB IoT middleware)"
+	depends on DT_HAS_NXP_SR150_ENABLED
+	select SPI
+	select GPIO
+	help
+	  Port of the NXP UWB IoT middleware (UCI core and UWB API) for the NXP
+	  SR150 UWB transceiver. The middleware itself is not part of this
+	  repository, see drivers/uwb/nxp/README.md for the setup.
+
+if UWB_NXP
+
+config UWB_NXP_THREAD_PRIORITY
+	int "Priority of the middleware threads"
+	default 4
+	range 0 14
+	help
+	  Zephyr preemptible priority used for all threads created by the NXP
+	  middleware (UWB task, HAL client, TML reader). They must share one
+	  priority so that none of them starves the others.
+
+config UWB_NXP_THREAD_STACK_SIZE
+	int "Stack size of the middleware threads"
+	default 4096
+
+config UWB_NXP_MAX_THREADS
+	int "Maximum number of middleware threads"
+	default 4
+	help
+	  The middleware creates three threads (UWB task, HAL client, TML reader).
+
+config UWB_NXP_IRQ_WAIT_MAX_MS
+	int "Upper limit of the IRQ wait in the SPI transport"
+	default 5000
+	help
+	  The NXP transport waits up to 10 s for the SR150 IRQ, which is longer
+	  than the UCI command retry window. The wait is capped to this value so
+	  that the reader is ready for the next retry. The wait for the boot IRQ
+	  of the SR150 (5 s) uses the same function, so keep this at 5000 or more
+	  unless the boot IRQ comes sooner.
+
+config UWB_NXP_SPI_SPLIT_SIZE
+	int "Maximum size of one SPI transfer"
+	default 255
+	range 1 4096
+	help
+	  The SPI transfers of the NXP transport are split into pieces of at most
+	  this many bytes (inherited from the nRF52840 port of NXP), which is also
+	  the largest transfer sr150_spi_transfer() accepts. The chip select is
+	  released between the pieces. The nRF54L15 SPIM could do much larger
+	  transfers, but a value above 255 has not been verified with the SR150.
+	  The firmware download sends packets of up to 2048 bytes plus header.
+
+config UWB_NXP_CMD_CMPL_TIMEOUT_MS
+	int "UCI command response timeout"
+	default 150
+	help
+	  Overrides UWB_CMD_CMPL_TIMEOUT of the NXP middleware.
+
+config UWB_NXP_CMD_RETRY_TIMEOUT_MS
+	int "UCI command response timeout when retrying"
+	default 150
+	help
+	  Overrides UWB_CMD_RETRY_TIMEOUT of the NXP middleware. The middleware
+	  adds 10 ms per retry on top of it.
+
+config UWB_NXP_LOG_LEVEL
+	int "NXP middleware log level"
+	default 3
+	range 0 4
+	help
+	  Log level of the messages emitted by the NXP middleware
+	  (0=OFF, 1=ERR, 2=WRN, 3=INF, 4=DBG).
+
+config UWB_NXP_LOG_LINE_SIZE
+	int "Size of one NXP middleware log line"
+	default 512
+	range 64 2048
+	help
+	  Buffer for one log line of the middleware (tag, message and, for UCI
+	  frames, the bytes as hex: 3 characters per byte). Longer lines are cut.
+	  The buffer is on the stack of the thread that logs, see
+	  UWB_NXP_THREAD_STACK_SIZE.
+
+config UWB_NXP_PLATFORM_LOG_LEVEL
+	int "Zephyr platform layer log level"
+	default 3
+	range 0 4
+	help
+	  Log level of the Zephyr OSAL and SPI/GPIO bus (0=OFF, 1=ERR, 2=WRN,
+	  3=INF, 4=DBG).
+
+endif # UWB_NXP

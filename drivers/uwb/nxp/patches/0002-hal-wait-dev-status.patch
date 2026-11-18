@@ -1,0 +1,80 @@
+hal: wait for the expected DEVICE_STATUS_NTF state during device init
+
+The semaphore behind the three waits in phNxpUciHal_uwbDeviceInit() is given for
+every INIT or READY notification. When the SR150 reports INIT more than once
+(seen with firmware 46.45.02 around the board configuration command) the wait
+for READY returned early with the device still in INIT, and init failed with
+"device status is failed 0". Wait until the wanted state was actually reported.
+The earlier demo worked around this by polling uwb_dev_status.
+
+--- a/libs/halimpl/hal/phNxpUciHal.c	2026-11-09 16:20:31.951211303 +0800
++++ b/libs/halimpl/hal/phNxpUciHal.c	2026-11-09 16:20:31.991210328 +0800
+@@ -749,6 +749,32 @@
+ }
+ 
+ /******************************************************************************
++ * Function         phNxpUciHal_wait_dev_status
++ *
++ * Description      Waits for a CORE_DEVICE_STATUS_NTF carrying the wanted state.
++ *                  The semaphore is given for every INIT or READY notification,
++ *                  so a notification of another state (for example a second INIT
++ *                  after the board configuration) must not end the wait.
++ *
++ * Returns          UWBSTATUS_SUCCESS if the wanted state was reported in time
++ *
++ ******************************************************************************/
++static UWBSTATUS phNxpUciHal_wait_dev_status(uint8_t wanted)
++{
++    uint32_t waited = 0;
++
++    while (waited < HAL_MAX_DEVICE_ST_NTF_TIMEOUT) {
++        if (phOsalUwb_ConsumeSemaphore_WithTimeout(nxpucihal_ctrl.dev_status_ntf_wait.sem, 50) ==
++                UWBSTATUS_SUCCESS &&
++            nxpucihal_ctrl.uwb_dev_status == wanted) {
++            return UWBSTATUS_SUCCESS;
++        }
++        waited += 50;
++    }
++    return UWBSTATUS_FAILED;
++}
++
++/******************************************************************************
+  * Function         phNxpUciHal_uwbDeviceInit
+  *
+  * Description      This function is called to initialize UWB device. It performs
+@@ -832,8 +858,13 @@
+ #endif //UWBIOT_UWBD_SR1XXT
+     if (status == UWBSTATUS_SUCCESS) {
+         //Wait for device init ntf
+-        if (phOsalUwb_ConsumeSemaphore_WithTimeout(
+-                nxpucihal_ctrl.dev_status_ntf_wait.sem, HAL_MAX_DEVICE_ST_NTF_TIMEOUT) != UWBSTATUS_SUCCESS) {
++        if (phNxpUciHal_wait_dev_status(
++#if UWBIOT_UWBD_SR1XXT
++                UWB_UCI_DEVICE_INIT
++#else
++                UWB_UCI_DEVICE_READY
++#endif
++                ) != UWBSTATUS_SUCCESS) {
+             NXPLOG_UCIHAL_E("%s: Sem Timed out", __FUNCTION__);
+             status = UWBSTATUS_FAILED;
+             goto clean_and_return;
+@@ -861,8 +892,7 @@
+         }
+ 
+         // wait for dev ready ntf
+-        if (phOsalUwb_ConsumeSemaphore_WithTimeout(
+-                nxpucihal_ctrl.dev_status_ntf_wait.sem, HAL_MAX_DEVICE_ST_NTF_TIMEOUT) != UWBSTATUS_SUCCESS) {
++        if (phNxpUciHal_wait_dev_status(UWB_UCI_DEVICE_READY) != UWBSTATUS_SUCCESS) {
+             NXPLOG_UCIHAL_E("%s: Sem Timed out", __FUNCTION__);
+             status = UWBSTATUS_FAILED;
+             goto clean_and_return;
+@@ -881,8 +911,7 @@
+         }
+ 
+         //wait for dev ready ntf
+-        if (phOsalUwb_ConsumeSemaphore_WithTimeout(
+-                nxpucihal_ctrl.dev_status_ntf_wait.sem, HAL_MAX_DEVICE_ST_NTF_TIMEOUT) != UWBSTATUS_SUCCESS) {
++        if (phNxpUciHal_wait_dev_status(UWB_UCI_DEVICE_READY) != UWBSTATUS_SUCCESS) {
+             NXPLOG_UCIHAL_E("%s: Sem Timed out", __FUNCTION__);
+             status = UWBSTATUS_FAILED;
+             goto clean_and_return;
