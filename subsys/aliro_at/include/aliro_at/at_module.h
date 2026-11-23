@@ -66,6 +66,26 @@ int at_module_send_urc(const char *urc);
 int dl_notify_lock_state(Aliro::ReaderStateByte state);
 
 /**
+ * @brief Whether the host decides on Aliro accesses (AT+ALIROACCESSMODE=1).
+ */
+bool dl_aliro_access_host_managed(void);
+
+/**
+ * @brief Ask the host to decide on a successful Aliro authentication.
+ *
+ * Sends "+ALIROACCESS: <op>,<session>,\"<public key>\"" and remembers the access. The host
+ * answers with AT+ALIROUNLOCK / AT+ALIROLOCK (granted) or AT+ALIROACCESSDENY. Without an
+ * answer within CONFIG_ALIRO_AT_MODULE_ACCESS_TIMEOUT_MS the access is dropped.
+ *
+ * @param unlock                  true for an unlock request, false for a lock request.
+ * @param isNfcSession            true when the authentication was done over NFC.
+ * @param accessCredentialPublicKey Access Credential public key of the User Device.
+ * @return 0 on success, negative error code on failure (the access must be denied).
+ */
+int dl_notify_aliro_access(bool unlock, bool isNfcSession,
+			   const Aliro::CryptoTypes::PublicKey &accessCredentialPublicKey);
+
+/**
  * @brief Send the time request URC "+TIME: REQ" to the host.
  *        The host is expected to respond with current time (e.g. AT+TIME=1,...).
  * @return 0 on success, negative error code on failure.

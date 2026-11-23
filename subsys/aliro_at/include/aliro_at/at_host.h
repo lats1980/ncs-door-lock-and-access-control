@@ -290,6 +290,37 @@ bool at_aliro_lock(Aliro::OperationSource source);
 bool at_aliro_unlock(Aliro::OperationSource source);
 
 /**
+ * @brief Callback type for Aliro accesses reported by the module (+ALIROACCESS).
+ *
+ * Called on the AT RX workqueue. It must not send AT commands or wait for other threads that
+ * may be waiting for an AT response; hand the work over to another thread instead.
+ *
+ * @param unlock        true for an unlock request, false for a lock request.
+ * @param isNfcSession  true when the authentication was done over NFC, false for BLE/UWB.
+ * @param public_key    Access Credential public key of the User Device
+ *                      (DL_ALIROACCESS_PUBLIC_KEY_SIZE bytes, valid only during the call).
+ */
+typedef void (*at_aliro_access_callback_t)(bool unlock, bool isNfcSession, const uint8_t *public_key);
+
+/**
+ * @brief Register the handler that decides on the accesses reported by the module.
+ *
+ * Without a callback the module is not asked to hand the decision to the host, see
+ * at_reader_start().
+ */
+void at_aliro_access_callback_set(at_aliro_access_callback_t callback);
+
+/**
+ * @brief Tell the module that the pending Aliro access is denied (AT+ALIROACCESSDENY).
+ *
+ * A granted access is answered with at_aliro_lock() / at_aliro_unlock(). The module also drops a
+ * pending access by itself after CONFIG_ALIRO_AT_MODULE_ACCESS_TIMEOUT_MS.
+ *
+ * @return true on success, false otherwise.
+ */
+bool at_aliro_access_deny(void);
+
+/**
  * @brief Send current time response over AT command (AT+TIME=1,YYYY-MM-DD,HH:MM:SS).
  *
  * Used when handling the "+TIME: REQ" URC to report current time to the host.

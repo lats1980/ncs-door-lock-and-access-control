@@ -127,6 +127,73 @@ static void dl_sync_str_rsp_handler(const uint8_t *data, size_t datalen)
 
 DL_AT_RSP(dl_sync_ready, "Ready", dl_sync_str_rsp_handler);
 
+static at_aliro_access_callback_t s_aliro_access_cb;
+
+static int hex_nibble(char c)
+{
+	if (c >= '0' && c <= '9') {
+		return c - '0';
+	}
+	if (c >= 'a' && c <= 'f') {
+		return c - 'a' + 10;
+	}
+	if (c >= 'A' && c <= 'F') {
+		return c - 'A' + 10;
+	}
+	return -1;
+}
+
+/* "+ALIROACCESS: <op>,<session>,\"<130 hex chars>\"" */
+static void aliro_access_urc_handler(const uint8_t *data, size_t datalen)
+{
+	const char *p = (const char *)data + strlen(DL_ALIROACCESS_URC);
+	const char *end = (const char *)data + datalen;
+	uint8_t key[DL_ALIROACCESS_PUBLIC_KEY_SIZE];
+	char *next;
+
+	if (s_aliro_access_cb == nullptr) {
+		LOG_WRN("Aliro access reported but nobody handles it, ignored");
+		return;
+	}
+
+	const long op = strtol(p, &next, 10);
+	if (next == p || *next != ',' || (op != DL_ALIROACCESS_OP_LOCK && op != DL_ALIROACCESS_OP_UNLOCK)) {
+		LOG_ERR("Invalid ALIROACCESS operation");
+		return;
+	}
+	p = next + 1;
+
+	const long session = strtol(p, &next, 10);
+	if (next == p || *next != ',' ||
+	    (session != DL_ALIROACCESS_SESSION_BLE_UWB && session != DL_ALIROACCESS_SESSION_NFC)) {
+		LOG_ERR("Invalid ALIROACCESS session");
+		return;
+	}
+	p = next + 1;
+
+	if (p >= end || *p != '"' || (size_t)(end - p) < 2 + 2 * sizeof(key) || p[1 + 2 * sizeof(key)] != '"') {
+		LOG_ERR("Invalid ALIROACCESS public key");
+		return;
+	}
+	p++;
+	for (size_t i = 0; i < sizeof(key); i++) {
+		const int hi = hex_nibble(p[2 * i]);
+		const int lo = hex_nibble(p[2 * i + 1]);
+
+		if (hi < 0 || lo < 0) {
+			LOG_ERR("Invalid ALIROACCESS public key");
+			return;
+		}
+		key[i] = (uint8_t)((hi << 4) | lo);
+	}
+
+	LOG_INF("Aliro %s reported by the reader (%s session)", op == DL_ALIROACCESS_OP_UNLOCK ? "unlock" : "lock",
+		session == DL_ALIROACCESS_SESSION_NFC ? "NFC" : "BLE/UWB");
+	s_aliro_access_cb(op == DL_ALIROACCESS_OP_UNLOCK, session == DL_ALIROACCESS_SESSION_NFC, key);
+}
+
+DL_AT_RSP(dl_aliro_access, DL_ALIROACCESS_URC, aliro_access_urc_handler);
+
 static bool dispatch_at_line(const char *line)
 {
 	for (size_t i = 0; i < s_custom_rsp_count; i++) {
@@ -349,7 +416,19 @@ bool at_reader_private_key_is_set(void)
 
 bool at_reader_start(void)
 {
+	char cmd_buf[DL_AT_LINE_BUF_SIZE];
 	int ret;
+
+	/*
+	 * Tell the module who decides on Aliro accesses before it starts to accept them: the host when
+	 * it has a handler, otherwise the module itself (it may still hold a previous host's setting).
+	 */
+	snprintf(cmd_buf, sizeof(cmd_buf), DL_ALIROACCESSMODE_CMD, s_aliro_access_cb != nullptr ? 1 : 0);
+	ret = at_host_send_cmd(cmd_buf, DL_ALIROACCESSMODE_TIMEOUT);
+	if (ret != AT_CMD_OK) {
+		LOG_WRN("AT+ALIROACCESSMODE failed or timeout: %d", ret);
+		return false;
+	}
 
 	ret = at_host_send_cmd(DL_START_CMD_STR, DL_START_CMD_TIMEOUT);
 	if (ret != AT_CMD_OK) {
@@ -848,6 +927,22 @@ bool at_aliro_unlock(Aliro::OperationSource source)
 		return false;
 	}
 
+	return true;
+}
+
+void at_aliro_access_callback_set(at_aliro_access_callback_t callback)
+{
+	s_aliro_access_cb = callback;
+}
+
+bool at_aliro_access_deny(void)
+{
+	const int ret = at_host_send_cmd(DL_ALIROACCESSDENY_CMD, DL_ALIROACCESSDENY_TIMEOUT);
+
+	if (ret != AT_CMD_OK) {
+		LOG_WRN("AT+ALIROACCESSDENY failed or timeout: %d", ret);
+		return false;
+	}
 	return true;
 }
 

@@ -316,6 +316,19 @@ int AliroInit()
 				  auto &lock = LockSimInstance();
 				  VerifyOrReturn(lock.GetState() != ReaderStateByte::Unsecured &&
 						 lock.GetState() != ReaderStateByte::EnteringUnsecured);
+#ifdef CONFIG_ALIRO_AT_MODULE
+				  if (dl_aliro_access_host_managed()) {
+					  // The host decides and answers with AT+ALIROUNLOCK. Without
+					  // an answer the door stays as it is (fail closed).
+					  const int err = dl_notify_aliro_access(true, isNfcSession,
+										 accessCredentialPublicKey);
+					  if (err) {
+						  LOG_ERR("Failed to request the unlock decision from the host: %d, access denied",
+							  err);
+					  }
+					  return;
+				  }
+#endif // CONFIG_ALIRO_AT_MODULE
 #ifdef CONFIG_DOOR_LOCK_BLE_UWB
 				  SetLastOperation(isNfcSession, accessCredentialPublicKey);
 #endif // CONFIG_DOOR_LOCK_BLE_UWB
@@ -328,6 +341,19 @@ int AliroInit()
 				  auto &lock = LockSimInstance();
 				  VerifyOrReturn(lock.GetState() != ReaderStateByte::Secured &&
 						 lock.GetState() != ReaderStateByte::EnteringSecured);
+#ifdef CONFIG_ALIRO_AT_MODULE
+				  if (dl_aliro_access_host_managed()) {
+					  // The host decides and answers with AT+ALIROLOCK. Without
+					  // an answer the door stays as it is (fail closed).
+					  const int err = dl_notify_aliro_access(false, isNfcSession,
+										 accessCredentialPublicKey);
+					  if (err) {
+						  LOG_ERR("Failed to request the lock decision from the host: %d, access denied",
+							  err);
+					  }
+					  return;
+				  }
+#endif // CONFIG_ALIRO_AT_MODULE
 #ifdef CONFIG_DOOR_LOCK_BLE_UWB
 				  SetLastOperation(isNfcSession, accessCredentialPublicKey);
 #endif // CONFIG_DOOR_LOCK_BLE_UWB

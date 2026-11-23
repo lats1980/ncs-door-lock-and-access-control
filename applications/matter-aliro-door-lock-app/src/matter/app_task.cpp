@@ -5,7 +5,9 @@
  */
 
 #include "app_task.h"
+#ifndef CONFIG_ALIRO_AT_HOST
 #include "aliro/access_manager/access_manager.h"
+#endif // !CONFIG_ALIRO_AT_HOST
 #include "bolt_lock_manager.h"
 #include "clusters/identify.h"
 

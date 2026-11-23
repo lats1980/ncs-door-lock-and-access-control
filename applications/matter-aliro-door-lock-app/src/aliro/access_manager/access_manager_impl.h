@@ -15,9 +15,9 @@
 #include "timer.h"
 #endif // CONFIG_DOOR_LOCK_ACCESS_MANAGER_TERMINATE_SESSION_ON_TIMEOUT
 
-#ifdef CONFIG_DOOR_LOCK_STEP_UP_PHASE
+#if defined(CONFIG_DOOR_LOCK_STEP_UP_PHASE) && !defined(CONFIG_ALIRO_AT_HOST)
 #include "validity_iterations.h"
-#endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE
+#endif // CONFIG_DOOR_LOCK_STEP_UP_PHASE && !CONFIG_ALIRO_AT_HOST
 
 #include <zephyr/kernel.h>
 

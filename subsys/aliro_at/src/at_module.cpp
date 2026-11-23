@@ -10,6 +10,7 @@
 #include <lock_sim_instance.h>
 
 #include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/reboot.h>
 #include <string.h>
@@ -18,6 +19,9 @@
 
 #include "aliro/access_manager/access_manager.h"
 #include "aliro/init.h"
+#ifdef CONFIG_DOOR_LOCK_BLE_UWB
+#include "aliro/last_operation.h"
+#endif // CONFIG_DOOR_LOCK_BLE_UWB
 
 LOG_MODULE_REGISTER(at_module, CONFIG_DOOR_LOCK_APP_LOG_LEVEL);
 
@@ -192,6 +196,122 @@ int dl_notify_lock_state(Aliro::ReaderStateByte state)
 		return -EINVAL;
 	}
 	return at_module_send_urc(urc_buf);
+}
+
+/*
+ * Aliro access decisions of the host.
+ *
+ * With AT+ALIROACCESSMODE=1 the host (Matter MCU) decides whether an authenticated User Device
+ * may lock or unlock the door, as it owns the users and credentials. The module reports the
+ * authentication with +ALIROACCESS and keeps it pending until the host answers with
+ * AT+ALIROUNLOCK / AT+ALIROLOCK (granted) or AT+ALIROACCESSDENY. No answer in time means the
+ * access is dropped and the door is left as it is (fail closed).
+ */
+static atomic_t s_access_host_managed;
+
+static struct {
+	bool active;
+	bool unlock;
+	bool isNfc;
+	Aliro::CryptoTypes::PublicKey key;
+} s_access_pending;
+
+K_MUTEX_DEFINE(s_access_mutex);
+
+static void access_timeout_work_fn(struct k_work *work)
+{
+	ARG_UNUSED(work);
+	k_mutex_lock(&s_access_mutex, K_FOREVER);
+	if (s_access_pending.active) {
+		s_access_pending.active = false;
+		LOG_WRN("Host did not answer the Aliro %s request in time, access denied",
+			s_access_pending.unlock ? "unlock" : "lock");
+	}
+	k_mutex_unlock(&s_access_mutex);
+}
+
+K_WORK_DELAYABLE_DEFINE(s_access_timeout_work, access_timeout_work_fn);
+
+bool dl_aliro_access_host_managed(void)
+{
+	return atomic_get(&s_access_host_managed) != 0;
+}
+
+int dl_notify_aliro_access(bool unlock, bool isNfcSession,
+			   const Aliro::CryptoTypes::PublicKey &accessCredentialPublicKey)
+{
+	char urc_buf[48 + 2 * DL_ALIROACCESS_PUBLIC_KEY_SIZE];
+	static_assert(sizeof(Aliro::CryptoTypes::PublicKey) == DL_ALIROACCESS_PUBLIC_KEY_SIZE,
+		      "Unexpected Aliro public key size");
+
+	int len = snprintf(urc_buf, sizeof(urc_buf), "\r\n" DL_ALIROACCESS_URC "%d,%d,\"",
+			   unlock ? DL_ALIROACCESS_OP_UNLOCK : DL_ALIROACCESS_OP_LOCK,
+			   isNfcSession ? DL_ALIROACCESS_SESSION_NFC : DL_ALIROACCESS_SESSION_BLE_UWB);
+	if (len < 0 || (size_t)len + 2 * accessCredentialPublicKey.size() + 4 > sizeof(urc_buf)) {
+		return -EINVAL;
+	}
+	for (size_t i = 0; i < accessCredentialPublicKey.size(); i++) {
+		len += snprintf(urc_buf + len, sizeof(urc_buf) - (size_t)len, "%02x",
+				accessCredentialPublicKey[i]);
+	}
+	snprintf(urc_buf + len, sizeof(urc_buf) - (size_t)len, "\"\r\n");
+
+	LOG_INF("Aliro %s requested via %s session, waiting for the host", unlock ? "unlock" : "lock",
+		isNfcSession ? "NFC" : "BLE/UWB");
+
+	k_mutex_lock(&s_access_mutex, K_FOREVER);
+	s_access_pending.active = true;
+	s_access_pending.unlock = unlock;
+	s_access_pending.isNfc = isNfcSession;
+	s_access_pending.key = accessCredentialPublicKey;
+	k_mutex_unlock(&s_access_mutex);
+	k_work_reschedule(&s_access_timeout_work, K_MSEC(CONFIG_ALIRO_AT_MODULE_ACCESS_TIMEOUT_MS));
+
+	int err = at_module_send_urc(urc_buf);
+	if (err) {
+		k_work_cancel_delayable(&s_access_timeout_work);
+		k_mutex_lock(&s_access_mutex, K_FOREVER);
+		s_access_pending.active = false;
+		k_mutex_unlock(&s_access_mutex);
+	}
+	return err;
+}
+
+/*
+ * The host asked for a lock or unlock: record who did it for the reader state change message that
+ * is sent to the User Device. For an access the host granted (+ALIROACCESS) this is the User Device
+ * with its public key, otherwise (e.g. a Matter command) only the operation source of the command.
+ */
+static void access_pending_consume(bool unlock, uint16_t source)
+{
+#ifdef CONFIG_DOOR_LOCK_BLE_UWB
+	/* Operation sources defined by the Aliro specification, others are reserved for future use */
+	const auto operation_source = source <= static_cast<uint16_t>(Aliro::OperationSource::Matter) ?
+					      static_cast<Aliro::OperationSource>(source) :
+					      Aliro::OperationSource::Unspecified;
+#else
+	ARG_UNUSED(source);
+#endif // CONFIG_DOOR_LOCK_BLE_UWB
+
+	k_mutex_lock(&s_access_mutex, K_FOREVER);
+	if (s_access_pending.active && s_access_pending.unlock == unlock) {
+		s_access_pending.active = false;
+		k_work_cancel_delayable(&s_access_timeout_work);
+#ifdef CONFIG_DOOR_LOCK_BLE_UWB
+		Aliro::SetLastOperation(s_access_pending.isNfc, s_access_pending.key);
+	} else {
+		Aliro::SetLastOperation(operation_source);
+#endif // CONFIG_DOOR_LOCK_BLE_UWB
+	}
+	k_mutex_unlock(&s_access_mutex);
+}
+
+static void access_pending_drop(void)
+{
+	k_work_cancel_delayable(&s_access_timeout_work);
+	k_mutex_lock(&s_access_mutex, K_FOREVER);
+	s_access_pending.active = false;
+	k_mutex_unlock(&s_access_mutex);
 }
 
 int dl_send_time_req_urc(void)
@@ -830,6 +950,50 @@ static int handle_at_amcmgr(enum at_parser_cmd_type cmd_type, struct at_parser *
 	return 0;
 }
 
+DL_AT_CMD(aliroaccessmode, "AT+ALIROACCESSMODE", handle_at_aliroaccessmode);
+static int handle_at_aliroaccessmode(enum at_parser_cmd_type cmd_type, struct at_parser *parser,
+				     uint32_t param_count)
+{
+	if (cmd_type == AT_PARSER_CMD_TYPE_READ) {
+		char buf[40];
+
+		snprintf(buf, sizeof(buf), "\r\n#ALIROACCESSMODE: %d\r\n",
+			 dl_aliro_access_host_managed() ? 1 : 0);
+		return at_send_str(buf);
+	}
+
+	if (cmd_type == AT_PARSER_CMD_TYPE_SET && param_count >= 1) {
+		uint16_t mode;
+		int ret = at_parser_uint16_get(parser, 1, &mode);
+
+		if (ret) {
+			return ret;
+		}
+		if (mode > 1) {
+			return -EINVAL;
+		}
+		LOG_INF("Aliro access decision by %s", mode ? "host" : "module");
+		atomic_set(&s_access_host_managed, mode);
+		if (!mode) {
+			access_pending_drop();
+		}
+		return 0;
+	}
+	return -EINVAL;
+}
+
+DL_AT_CMD(aliroaccessdeny, "AT+ALIROACCESSDENY", handle_at_aliroaccessdeny);
+static int handle_at_aliroaccessdeny(enum at_parser_cmd_type cmd_type, struct at_parser *parser,
+				     uint32_t param_count)
+{
+	ARG_UNUSED(cmd_type);
+	ARG_UNUSED(parser);
+	ARG_UNUSED(param_count);
+	LOG_INF("Host denied the Aliro access");
+	access_pending_drop();
+	return 0;
+}
+
 DL_AT_CMD(alirolock, "AT+ALIROLOCK", handle_at_alirolock);
 static int handle_at_alirolock(enum at_parser_cmd_type cmd_type, struct at_parser *parser,
 			      uint32_t param_count)
@@ -846,7 +1010,7 @@ static int handle_at_alirolock(enum at_parser_cmd_type cmd_type, struct at_parse
 			return ret;
 		}
 		LOG_INF("Locking via ALIROLOCK with source %d", source);
-		ARG_UNUSED(source);
+		access_pending_consume(false, source);
 		if (!Aliro::LockSimInstance().Lock())
 		{
 			LOG_ERR("Failed to lock via ALIROLOCK");
@@ -873,7 +1037,7 @@ static int handle_at_alirounlock(enum at_parser_cmd_type cmd_type, struct at_par
 			return ret;
 		}
 		LOG_INF("Unlocking via ALIROUNLOCK with source %d", source);
-		ARG_UNUSED(source);
+		access_pending_consume(true, source);
 		if (!Aliro::LockSimInstance().Unlock())
 		{
 			LOG_ERR("Failed to unlock via ALIROUNLOCK");

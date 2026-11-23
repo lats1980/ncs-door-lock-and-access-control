@@ -92,6 +92,18 @@ config ALIRO_AT_TRANSPORT_STATE_INDICATOR
 	help
 	  Enable indication of the AT transport state (connected/disconnected).
 
+config ALIRO_AT_MODULE_ACCESS_TIMEOUT_MS
+	int "Time the host has to decide on an Aliro access (ms)"
+	default 3000
+	range 500 60000
+	depends on ALIRO_AT_MODULE
+	help
+	  When the host owns the access decision (AT+ALIROACCESSMODE=1), the module
+	  reports every successful Aliro authentication with +ALIROACCESS and waits
+	  for AT+ALIROUNLOCK / AT+ALIROLOCK. If the host does not answer in this
+	  time, the access is dropped and the door state is not changed (fail
+	  closed).
+
 config ALIRO_AT_MODULE_MAX_CUSTOM_CMDS
 	int "Maximum number of custom AT commands"
 	default 32

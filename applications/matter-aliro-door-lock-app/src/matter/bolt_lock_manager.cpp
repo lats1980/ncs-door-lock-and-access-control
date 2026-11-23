@@ -71,7 +71,6 @@ namespace {
 	}
 }
 
-#ifndef CONFIG_ALIRO_AT_HOST
 bool ValidateAliroCredential(const Aliro::CryptoTypes::PublicKey &accessCredentialPublicKey,
 			     Nullable<BoltLockManager::ValidateCredentialResult> &result)
 {
@@ -87,8 +86,8 @@ bool ValidateAliroCredential(const Aliro::CryptoTypes::PublicKey &accessCredenti
 
 	return success;
 }
-#endif // CONFIG_ALIRO_AT_HOST
 
+#ifndef CONFIG_ALIRO_AT_HOST
 void HandleAliroUnlock(bool isNfcSession, const Aliro::CryptoTypes::PublicKey &accessCredentialPublicKey)
 {
 	const auto source = isNfcSession ? Aliro::OperationSource::ThisUserDeviceInNfc :
@@ -100,6 +99,70 @@ void HandleAliroUnlock(bool isNfcSession, const Aliro::CryptoTypes::PublicKey &a
 
 	Nrf::PostTask([source, result] { BoltLockMgr().Unlock(source, result); });
 }
+#endif // !CONFIG_ALIRO_AT_HOST
+
+#ifdef CONFIG_ALIRO_AT_HOST
+/*
+ * The reader MCU reports a successful Aliro authentication and waits for the decision of this
+ * MCU (+ALIROACCESS). The credential is validated against the Matter users and credentials; a
+ * granted access is answered with AT+ALIROUNLOCK / AT+ALIROLOCK, a denied one with
+ * AT+ALIROACCESSDENY. The reader drops the access by itself when it gets no answer in time.
+ *
+ * Runs on the application task, not on the AT RX workqueue: validating needs the CHIP stack
+ * lock, and sending AT commands needs the AT RX workqueue to receive the response.
+ */
+struct AliroAccessRequest {
+	bool unlock;
+	bool isNfcSession;
+	Aliro::CryptoTypes::PublicKey accessCredentialPublicKey;
+};
+
+void ProcessAliroAccess(AliroAccessRequest *request)
+{
+	const bool unlock = request->unlock;
+	const auto source = request->isNfcSession ? Aliro::OperationSource::ThisUserDeviceInNfc :
+						    Aliro::OperationSource::ThisUserDeviceInBluetoothLeUwbAliroFlow;
+
+	Nullable<BoltLockManager::ValidateCredentialResult> result;
+	const bool valid = ValidateAliroCredential(request->accessCredentialPublicKey, result);
+
+	k_free(request);
+
+	if (!valid) {
+		LOG_WRN("Aliro %s denied: credential is not valid", unlock ? "unlock" : "lock");
+		at_aliro_access_deny();
+		return;
+	}
+
+	LOG_INF("Aliro %s granted for user %u, credential type %u index %u", unlock ? "unlock" : "lock",
+		static_cast<unsigned>(result.IsNull() ? 0 : result.Value().mUserIndex),
+		static_cast<unsigned>(result.IsNull() ? 0 : to_underlying(result.Value().mCredential.credentialType)),
+		static_cast<unsigned>(result.IsNull() ? 0 : result.Value().mCredential.credentialIndex));
+
+	const bool started = unlock ? BoltLockMgr().Unlock(source, result) : BoltLockMgr().Lock(source, result);
+	if (!started) {
+		// The door is already in the requested state, there is nothing to answer with.
+		at_aliro_access_deny();
+	}
+}
+
+void HandleAtAliroAccess(bool unlock, bool isNfcSession, const uint8_t *publicKey)
+{
+	// The key does not fit into the storage of a posted task, so it is handed over on the heap.
+	auto *request = static_cast<AliroAccessRequest *>(k_malloc(sizeof(AliroAccessRequest)));
+
+	if (request == nullptr) {
+		LOG_ERR("Out of memory, Aliro access denied");
+		return;
+	}
+	request->unlock = unlock;
+	request->isNfcSession = isNfcSession;
+	std::copy_n(publicKey, request->accessCredentialPublicKey.size(), request->accessCredentialPublicKey.data());
+
+	// Not on the AT RX workqueue, see ProcessAliroAccess()
+	Nrf::PostTask([request] { ProcessAliroAccess(request); });
+}
+#endif // CONFIG_ALIRO_AT_HOST
 
 } // namespace
 
@@ -107,6 +170,8 @@ void BoltLockManager::Init(StateChangeCallback callback)
 {
 	mStateChangeCallback = callback;
 #ifdef CONFIG_ALIRO_AT_HOST
+	// The reader MCU asks this MCU to decide on every Aliro access, see ProcessAliroAccess()
+	at_aliro_access_callback_set(HandleAtAliroAccess);
 #else
 	mLockSim.Init(
 		[](Aliro::ReaderStateByte state) { Nrf::PostTask([state] { BoltLockMgr().UpdateState(state); }); });
@@ -181,7 +246,8 @@ void BoltLockManager::Init(StateChangeCallback callback)
 				static_cast<uint8_t>(credentialType));
 			return;
 		}
-		if (!at_amcmgr_remove_public_key(credentialIndex, type)) {
+		// The credential index is 1-based, the reader stores 0-based indexes (see addPublicKey)
+		if (!at_amcmgr_remove_public_key(credentialIndex - 1, type)) {
 			LOG_ERR("removePublicKey: AT+AMCMGR=0 failed");
 		}
 #else
